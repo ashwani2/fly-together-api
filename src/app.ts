@@ -8,6 +8,7 @@ import { authRouter } from './modules/auth/routes.js';
 import { studentsRouter } from './modules/students/routes.js';
 import { documentsTopRouter } from './modules/students/documents.routes.js';
 import { filesRouter } from './modules/files/routes.js';
+import { agentsRouter } from './modules/agents/routes.js';
 
 export function createApp() {
   const app = express();
@@ -21,6 +22,7 @@ export function createApp() {
   app.use('/api/students', studentsRouter);
   app.use('/api/documents', documentsTopRouter);
   app.use('/api/files', filesRouter);
+  app.use('/api/agents', agentsRouter);
 
   app.use((_req, _res, next) => next(AppError.notFound('Route not found')));
   app.use(errorHandler);
