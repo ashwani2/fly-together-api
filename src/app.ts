@@ -4,6 +4,7 @@ import helmet from 'helmet';
 import { env } from './config/env.js';
 import { errorHandler } from './middleware/error.js';
 import { AppError } from './lib/errors.js';
+import { authRouter } from './modules/auth/routes.js';
 
 export function createApp() {
   const app = express();
@@ -13,7 +14,7 @@ export function createApp() {
 
   app.get('/api/health', (_req, res) => res.json({ data: { status: 'ok' } }));
 
-  // Module routers are mounted here as they are built (Tasks 12+).
+  app.use('/api/auth', authRouter);
 
   app.use((_req, _res, next) => next(AppError.notFound('Route not found')));
   app.use(errorHandler);
