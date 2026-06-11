@@ -7,7 +7,7 @@ import type { StorageProvider } from './index.js';
 export class LocalStorage implements StorageProvider {
   constructor(private baseDir: string) {}
 
-  async put(key: string, data: Buffer): Promise<string> {
+  async put(key: string, data: Buffer, _contentType?: string): Promise<string> {
     const full = path.join(this.baseDir, key);
     await fs.mkdir(path.dirname(full), { recursive: true });
     await fs.writeFile(full, data);
