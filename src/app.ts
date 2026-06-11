@@ -16,6 +16,7 @@ import { partnersRouter } from './modules/partners/routes.js';
 import { blogsRouter } from './modules/blogs/routes.js';
 import { testimonialsRouter } from './modules/testimonials/routes.js';
 import { loansRouter } from './modules/loans/routes.js';
+import { applicationsRouter } from './modules/applications/routes.js';
 
 export function createApp() {
   const app = express();
@@ -37,6 +38,7 @@ export function createApp() {
   app.use('/api/blogs', blogsRouter);
   app.use('/api/testimonials', testimonialsRouter);
   app.use('/api/loans', loansRouter);
+  app.use('/api/applications', applicationsRouter);
 
   app.use((_req, _res, next) => next(AppError.notFound('Route not found')));
   app.use(errorHandler);
