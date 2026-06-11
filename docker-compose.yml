@@ -1,0 +1,13 @@
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: flyuser
+      POSTGRES_PASSWORD: flypass
+      POSTGRES_DB: flytogether
+    ports:
+      - "5433:5432"
+    volumes:
+      - flydata:/var/lib/postgresql/data
+volumes:
+  flydata:
