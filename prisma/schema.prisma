@@ -1,0 +1,264 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  STUDENT
+  ADMIN
+  AGENT
+}
+
+enum AgentStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum DocType {
+  PASSPORT
+  AADHAR
+  ACADEMICS
+  IELTS
+}
+
+enum DocStatus {
+  UPLOADED
+  PENDING
+  VERIFIED
+  REJECTED
+}
+
+enum ServiceCategory {
+  ACCOMMODATION
+  TICKET_BOOKING
+  LOANS
+  LOGISTICS
+  ONLINE_PAYMENT
+}
+
+enum MediaType {
+  IMAGE
+  VIDEO
+}
+
+enum ApplicationStatus {
+  PROFILE
+  DOCUMENTS
+  VERIFICATION
+  APPLICATION
+  PAYMENT
+  COMPLETED
+}
+
+enum PaymentStatus {
+  PENDING
+  COMPLETED
+  FAILED
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  role         Role     @default(STUDENT)
+  phoneNumber  String?
+  student      Student?
+  agent        Agent?
+  consents     Consent[]
+  auditLogs    AuditLog[]
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model Student {
+  id                 String   @id @default(cuid())
+  userId             String   @unique
+  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  agentId            String?
+  agent              Agent?   @relation(fields: [agentId], references: [id])
+  firstName          String?
+  lastName           String?
+  dob                DateTime?
+  address            String?
+  isProfileCompleted Boolean  @default(false)
+  isProfileVerified  Boolean  @default(false)
+  isDocSubmitted     Boolean  @default(false)
+  profileCompletion  Int      @default(0)
+  documents          StudentDocument[]
+  applications       Application[]
+  loanApplications   LoanApplication[]
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+}
+
+model Agent {
+  id        String      @id @default(cuid())
+  userId    String      @unique
+  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name      String
+  status    AgentStatus @default(ACTIVE)
+  students  Student[]
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+}
+
+model StudentDocument {
+  id        String    @id @default(cuid())
+  studentId String
+  student   Student   @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  docUrl    String
+  docType   DocType
+  status    DocStatus @default(UPLOADED)
+  removed   Boolean   @default(false)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+}
+
+model University {
+  id           String        @id @default(cuid())
+  name         String
+  location     String
+  logo         String
+  rating       Float         @default(0)
+  tuitionFee   String
+  description  String
+  courses      Course[]
+  applications Application[]
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+}
+
+model Course {
+  id           String     @id @default(cuid())
+  universityId String
+  university   University @relation(fields: [universityId], references: [id], onDelete: Cascade)
+  name         String
+}
+
+model Accommodation {
+  id                  String   @id @default(cuid())
+  name                String
+  city                String
+  universityProximity String?
+  price               String
+  type                String
+  amenities           String[]
+  image               String
+  description         String
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+}
+
+model ServiceProvider {
+  id          String          @id @default(cuid())
+  name        String
+  category    ServiceCategory
+  rating      Float           @default(0)
+  price       String
+  location    String?
+  image       String
+  description String
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+}
+
+model Partner {
+  id            String   @id @default(cuid())
+  name          String
+  imageUrl      String
+  redirectionUrl String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model LoanApplication {
+  id        String   @id @default(cuid())
+  studentId String
+  student   Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  amount    String
+  status    String   @default("PENDING")
+  details   Json?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Blog {
+  id          String   @id @default(cuid())
+  title       String
+  slug        String   @unique
+  excerpt     String
+  content     String
+  coverImage  String
+  author      String
+  category    String
+  readTime    String
+  isActive    Boolean  @default(true)
+  videoUrl    String?
+  publishedBy String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Testimonial {
+  id             String    @id @default(cuid())
+  studentName    String
+  universityName String?
+  content        String
+  mediaUrl       String
+  mediaType      MediaType @default(IMAGE)
+  avatarUrl      String?
+  isActive       Boolean   @default(true)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+}
+
+model Application {
+  id              String              @id @default(cuid())
+  studentId       String
+  student         Student             @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  universityId    String
+  university      University          @relation(fields: [universityId], references: [id])
+  course          String
+  status          ApplicationStatus   @default(PROFILE)
+  rejectionReason String?
+  paymentLink     String?
+  paymentStatus   PaymentStatus       @default(PENDING)
+  timeline        ApplicationTimeline[]
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+}
+
+model ApplicationTimeline {
+  id            String      @id @default(cuid())
+  applicationId String
+  application   Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  action        String
+  actionTakenBy String?
+  createdAt     DateTime    @default(now())
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id])
+  action    String
+  entity    String
+  entityId  String?
+  ip        String?
+  metadata  Json?
+  createdAt DateTime @default(now())
+}
+
+model Consent {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  consentType String
+  granted     Boolean  @default(true)
+  version     String   @default("1.0")
+  createdAt   DateTime @default(now())
+}
