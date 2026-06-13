@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 export const createApplicationSchema = z.object({
-  body: z.object({ universityId: z.string().min(1), course: z.string().min(1) }),
+  body: z.object({ universityName: z.string().min(1), course: z.string().min(1) }),
 });
 
 export const statusSchema = z.object({

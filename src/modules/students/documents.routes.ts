@@ -18,6 +18,7 @@ const upload = multer({
 export const documentsRouter = Router();
 documentsRouter.post('/', upload.single('file'), auditLog('UPLOAD', 'document'), c.upload);
 documentsRouter.get('/', c.list);
+documentsRouter.get('/:id/url', c.viewUrl);
 
 // Mounted at /api/documents (delete + verify live here so non-students can verify)
 export const documentsTopRouter = Router();

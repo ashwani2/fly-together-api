@@ -24,3 +24,11 @@ export async function me(req: Request, res: Response, next: NextFunction) {
   try { res.json({ data: await service.me(req.user!.id) }); }
   catch (e) { next(e); }
 }
+export async function forgotPassword(req: Request, res: Response, next: NextFunction) {
+  try { res.json({ data: await service.forgotPassword(req.body.email) }); }
+  catch (e) { next(e); }
+}
+export async function resetPassword(req: Request, res: Response, next: NextFunction) {
+  try { res.json({ data: await service.resetPassword(req.body.token, req.body.password) }); }
+  catch (e) { next(e); }
+}

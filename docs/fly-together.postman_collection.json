@@ -1,0 +1,577 @@
+{
+  "info": {
+    "name": "Fly Together API",
+    "description": "Backend API for Fly Together. Set the `baseUrl` variable (default http://localhost:4000/api). Run an 'Auth > Login ...' request first — it auto-saves the token into a collection variable used by the other requests.\n\nDemo logins (password Password1!): admin@flytogether.com, agent@flytogether.com, alex.j@example.com",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:4000/api" },
+    { "key": "token", "value": "" },
+    { "key": "adminToken", "value": "" },
+    { "key": "agentToken", "value": "" },
+    { "key": "universityId", "value": "" },
+    { "key": "applicationId", "value": "" },
+    { "key": "documentId", "value": "" },
+    { "key": "loanId", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Health",
+      "item": [
+        {
+          "name": "GET /health",
+          "request": { "method": "GET", "url": "{{baseUrl}}/health" }
+        }
+      ]
+    },
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Register (student)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/auth/register",
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"test@demo.com\",\n  \"password\": \"Password1!\",\n  \"role\": \"STUDENT\",\n  \"consent\": true\n}" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": { "type": "text/javascript", "exec": [
+                "const d = pm.response.json().data;",
+                "if (d && d.accessToken) pm.collectionVariables.set('token', d.accessToken);"
+              ] }
+            }
+          ]
+        },
+        {
+          "name": "Register (agent)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/auth/register",
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"agent2@demo.com\",\n  \"password\": \"Password1!\",\n  \"role\": \"AGENT\",\n  \"name\": \"Demo Agent\",\n  \"consent\": true\n}" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": { "type": "text/javascript", "exec": [
+                "const d = pm.response.json().data;",
+                "if (d && d.accessToken) pm.collectionVariables.set('agentToken', d.accessToken);"
+              ] }
+            }
+          ]
+        },
+        {
+          "name": "Login (student) -> saves {{token}}",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/auth/login",
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"alex.j@example.com\",\n  \"password\": \"Password1!\"\n}" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": { "type": "text/javascript", "exec": [
+                "const d = pm.response.json().data;",
+                "if (d && d.accessToken) pm.collectionVariables.set('token', d.accessToken);"
+              ] }
+            }
+          ]
+        },
+        {
+          "name": "Login (admin) -> saves {{adminToken}}",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/auth/login",
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"admin@flytogether.com\",\n  \"password\": \"Password1!\"\n}" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": { "type": "text/javascript", "exec": [
+                "const d = pm.response.json().data;",
+                "if (d && d.accessToken) pm.collectionVariables.set('adminToken', d.accessToken);"
+              ] }
+            }
+          ]
+        },
+        {
+          "name": "Login (agent) -> saves {{agentToken}}",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/auth/login",
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"agent@flytogether.com\",\n  \"password\": \"Password1!\"\n}" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": { "type": "text/javascript", "exec": [
+                "const d = pm.response.json().data;",
+                "if (d && d.accessToken) pm.collectionVariables.set('agentToken', d.accessToken);"
+              ] }
+            }
+          ]
+        },
+        {
+          "name": "Refresh token",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/auth/refresh",
+            "body": { "mode": "raw", "raw": "{\n  \"refreshToken\": \"PASTE_REFRESH_TOKEN\"\n}" }
+          }
+        },
+        {
+          "name": "Logout",
+          "request": { "method": "POST", "url": "{{baseUrl}}/auth/logout" }
+        },
+        {
+          "name": "Me",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": "{{baseUrl}}/auth/me"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Students",
+      "item": [
+        {
+          "name": "Get my profile",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": "{{baseUrl}}/students/me"
+          }
+        },
+        {
+          "name": "Update my profile",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{baseUrl}}/students/me",
+            "body": { "mode": "raw", "raw": "{\n  \"firstName\": \"Alex\",\n  \"lastName\": \"Johnson\",\n  \"dob\": \"2000-01-01\",\n  \"address\": \"1 High St\",\n  \"phoneNumber\": \"+44 1234 567890\"\n}" }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Documents",
+      "item": [
+        {
+          "name": "Upload document (multipart) -> saves {{documentId}}",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": "{{baseUrl}}/students/me/documents",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "docType", "value": "PASSPORT", "type": "text" },
+                { "key": "file", "type": "file", "src": "" }
+              ]
+            },
+            "description": "Select a PDF/JPG/PNG file (<=10MB) for the 'file' field before sending."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": { "type": "text/javascript", "exec": [
+                "const d = pm.response.json().data;",
+                "if (d && d.id) pm.collectionVariables.set('documentId', d.id);"
+              ] }
+            }
+          ]
+        },
+        {
+          "name": "List my documents",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": "{{baseUrl}}/students/me/documents"
+          }
+        },
+        {
+          "name": "Delete document",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": "{{baseUrl}}/documents/{{documentId}}"
+          }
+        },
+        {
+          "name": "Verify document (admin/agent)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{baseUrl}}/documents/{{documentId}}/verify",
+            "body": { "mode": "raw", "raw": "{\n  \"status\": \"VERIFIED\"\n}" }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Agents",
+      "item": [
+        {
+          "name": "List agents (admin)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "url": "{{baseUrl}}/agents"
+          }
+        },
+        {
+          "name": "My assigned students (agent)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{agentToken}}" }],
+            "url": "{{baseUrl}}/agents/me/students"
+          }
+        },
+        {
+          "name": "Verify student profile (agent/admin)",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Authorization", "value": "Bearer {{agentToken}}" }],
+            "url": "{{baseUrl}}/agents/students/STUDENT_ID/verify"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Universities",
+      "item": [
+        {
+          "name": "List (public) -> saves {{universityId}}",
+          "request": { "method": "GET", "url": "{{baseUrl}}/universities" },
+          "event": [
+            {
+              "listen": "test",
+              "script": { "type": "text/javascript", "exec": [
+                "const d = pm.response.json().data;",
+                "if (Array.isArray(d) && d[0]) pm.collectionVariables.set('universityId', d[0].id);"
+              ] }
+            }
+          ]
+        },
+        {
+          "name": "Get by id (public)",
+          "request": { "method": "GET", "url": "{{baseUrl}}/universities/{{universityId}}" }
+        },
+        {
+          "name": "Create (admin) -> saves {{universityId}}",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{baseUrl}}/universities",
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Test University\",\n  \"location\": \"London, UK\",\n  \"logo\": \"https://logo/test\",\n  \"rating\": 4.5,\n  \"tuitionFee\": \"£20,000 - £35,000\",\n  \"description\": \"A test university.\",\n  \"courses\": [\"Computer Science\", \"Business\"]\n}" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": { "type": "text/javascript", "exec": [
+                "const d = pm.response.json().data;",
+                "if (d && d.id) pm.collectionVariables.set('universityId', d.id);"
+              ] }
+            }
+          ]
+        },
+        {
+          "name": "Update (admin)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{baseUrl}}/universities/{{universityId}}",
+            "body": { "mode": "raw", "raw": "{\n  \"rating\": 4.8\n}" }
+          }
+        },
+        {
+          "name": "Delete (admin)",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "url": "{{baseUrl}}/universities/{{universityId}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Accommodations",
+      "item": [
+        {
+          "name": "List (public, filterable)",
+          "request": { "method": "GET", "url": "{{baseUrl}}/accommodations?city=London" }
+        },
+        {
+          "name": "Create (admin)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{baseUrl}}/accommodations",
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Student Comforts\",\n  \"city\": \"London\",\n  \"universityProximity\": \"Imperial College London\",\n  \"price\": \"From £120/week\",\n  \"type\": \"Studio\",\n  \"amenities\": [\"WiFi\", \"Gym\"],\n  \"image\": \"https://i\",\n  \"description\": \"Premium student housing.\"\n}" }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Service Providers",
+      "item": [
+        {
+          "name": "List (public, filterable)",
+          "request": { "method": "GET", "url": "{{baseUrl}}/service-providers?category=LOGISTICS" }
+        },
+        {
+          "name": "Create (admin)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{baseUrl}}/service-providers",
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Royal Rahi Logistics\",\n  \"category\": \"LOGISTICS\",\n  \"rating\": 4.9,\n  \"price\": \"Price per KG\",\n  \"image\": \"https://i\",\n  \"description\": \"Worldwide shipping.\"\n}" }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Partners",
+      "item": [
+        { "name": "List (public)", "request": { "method": "GET", "url": "{{baseUrl}}/partners" } },
+        {
+          "name": "Create (admin)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{baseUrl}}/partners",
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Avila University\",\n  \"imageUrl\": \"https://i\",\n  \"redirectionUrl\": \"https://r\"\n}" }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Blogs",
+      "item": [
+        { "name": "List (public)", "request": { "method": "GET", "url": "{{baseUrl}}/blogs" } },
+        { "name": "Get by slug (public)", "request": { "method": "GET", "url": "{{baseUrl}}/blogs/slug/top-5-uk-universities-2024" } },
+        {
+          "name": "Create (admin)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{baseUrl}}/blogs",
+            "body": { "mode": "raw", "raw": "{\n  \"title\": \"New Post\",\n  \"slug\": \"new-post\",\n  \"excerpt\": \"short excerpt\",\n  \"content\": \"full content\",\n  \"coverImage\": \"https://i\",\n  \"author\": \"Editorial\",\n  \"category\": \"Education\",\n  \"readTime\": \"5 min read\"\n}" }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Testimonials",
+      "item": [
+        { "name": "List (public)", "request": { "method": "GET", "url": "{{baseUrl}}/testimonials" } },
+        {
+          "name": "Create (admin)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{baseUrl}}/testimonials",
+            "body": { "mode": "raw", "raw": "{\n  \"studentName\": \"Aarav Sharma\",\n  \"universityName\": \"University of Oxford\",\n  \"content\": \"Seamless journey.\",\n  \"mediaUrl\": \"https://i\",\n  \"mediaType\": \"IMAGE\"\n}" }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Loans",
+      "item": [
+        {
+          "name": "Create (student) -> saves {{loanId}}",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{baseUrl}}/loans",
+            "body": { "mode": "raw", "raw": "{\n  \"amount\": \"500000\",\n  \"details\": { \"purpose\": \"tuition\" }\n}" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": { "type": "text/javascript", "exec": [
+                "const d = pm.response.json().data;",
+                "if (d && d.id) pm.collectionVariables.set('loanId', d.id);"
+              ] }
+            }
+          ]
+        },
+        {
+          "name": "List (role-scoped)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": "{{baseUrl}}/loans"
+          }
+        },
+        {
+          "name": "Update status (admin)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{baseUrl}}/loans/{{loanId}}",
+            "body": { "mode": "raw", "raw": "{\n  \"status\": \"APPROVED\"\n}" }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Applications",
+      "item": [
+        {
+          "name": "Create (student) -> saves {{applicationId}}",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{baseUrl}}/applications",
+            "body": { "mode": "raw", "raw": "{\n  \"universityId\": \"{{universityId}}\",\n  \"course\": \"MSc Computer Science\"\n}" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": { "type": "text/javascript", "exec": [
+                "const d = pm.response.json().data;",
+                "if (d && d.id) pm.collectionVariables.set('applicationId', d.id);"
+              ] }
+            }
+          ]
+        },
+        {
+          "name": "List (role-scoped)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": "{{baseUrl}}/applications"
+          }
+        },
+        {
+          "name": "Get by id",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": "{{baseUrl}}/applications/{{applicationId}}"
+          }
+        },
+        {
+          "name": "Timeline",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": "{{baseUrl}}/applications/{{applicationId}}/timeline"
+          }
+        },
+        {
+          "name": "Set status (admin/agent)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{baseUrl}}/applications/{{applicationId}}/status",
+            "body": { "mode": "raw", "raw": "{\n  \"status\": \"VERIFICATION\"\n}" }
+          }
+        },
+        {
+          "name": "Set payment (admin)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{baseUrl}}/applications/{{applicationId}}/payment",
+            "body": { "mode": "raw", "raw": "{\n  \"paymentLink\": \"https://flywire.example/pay/123\",\n  \"paymentStatus\": \"COMPLETED\"\n}" }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Admin / GDPR",
+      "item": [
+        {
+          "name": "Dashboard stats (admin)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "url": "{{baseUrl}}/admin/stats"
+          }
+        },
+        {
+          "name": "Audit logs (admin)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "url": "{{baseUrl}}/audit"
+          }
+        },
+        {
+          "name": "Record consent",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{baseUrl}}/consent",
+            "body": { "mode": "raw", "raw": "{\n  \"consentType\": \"MARKETING\",\n  \"granted\": true\n}" }
+          }
+        },
+        {
+          "name": "My consents",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": "{{baseUrl}}/consent/me"
+          }
+        }
+      ]
+    }
+  ]
+}

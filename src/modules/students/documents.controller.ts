@@ -18,6 +18,12 @@ export async function list(req: Request, res: Response, next: NextFunction) {
   try { res.json({ data: await service.list(req.user!.id) }); }
   catch (e) { next(e); }
 }
+export async function viewUrl(req: Request, res: Response, next: NextFunction) {
+  try {
+    const path = await service.viewUrl(req.user!.id, req.params.id);
+    res.json({ data: { url: `${req.protocol}://${req.get('host')}${path}` } });
+  } catch (e) { next(e); }
+}
 export async function remove(req: Request, res: Response, next: NextFunction) {
   try { res.json({ data: await service.softDelete(req.user!.id, req.params.id) }); }
   catch (e) { next(e); }

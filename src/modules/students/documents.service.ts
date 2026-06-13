@@ -30,6 +30,13 @@ export async function softDelete(userId: string, docId: string) {
   return prisma.studentDocument.update({ where: { id: docId }, data: { removed: true } });
 }
 
+export async function viewUrl(userId: string, docId: string): Promise<string> {
+  const studentId = await studentIdFor(userId);
+  const doc = await prisma.studentDocument.findUnique({ where: { id: docId } });
+  if (!doc || doc.studentId !== studentId || doc.removed) throw AppError.notFound('Document not found');
+  return getStorage().getSignedUrl(doc.docUrl); // relative path: /api/files/<key>?expires=&sig=
+}
+
 export async function verify(docId: string, status: DocStatus) {
   const doc = await prisma.studentDocument.findUnique({ where: { id: docId } });
   if (!doc) throw AppError.notFound('Document not found');

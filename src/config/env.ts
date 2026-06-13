@@ -13,6 +13,14 @@ const schema = z.object({
   UPLOAD_DIR: z.string().default('uploads'),
   SIGNED_URL_SECRET: z.string().min(8),
   SIGNED_URL_TTL_SECONDS: z.coerce.number().default(300),
+  FRONTEND_URL: z.string().default('http://localhost:3000'),
+  RESET_TOKEN_TTL_MINUTES: z.coerce.number().default(60),
+  // SMTP is optional — if unset, reset emails are logged to the server console.
+  SMTP_HOST: z.string().optional(),
+  SMTP_PORT: z.coerce.number().optional(),
+  SMTP_USER: z.string().optional(),
+  SMTP_PASS: z.string().optional(),
+  MAIL_FROM: z.string().default('Fly Together <no-reply@flytogether.com>'),
 });
 
 export const env = schema.parse(process.env);

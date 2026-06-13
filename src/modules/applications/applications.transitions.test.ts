@@ -4,10 +4,14 @@ import { app, resetDb, createUser } from '../../test/helpers.js';
 import { prisma } from '../../lib/prisma.js';
 
 async function setup() {
-  const uni = await prisma.university.create({ data: { name: 'U', location: 'UK', logo: 'l', tuitionFee: '£1', description: 'd' } });
   const student = await createUser('STUDENT');
+  const s = await prisma.student.findUnique({ where: { userId: student.user.id } });
+  await prisma.student.update({ where: { id: s!.id }, data: { isProfileCompleted: true } });
+  await prisma.studentDocument.createMany({
+    data: (['PASSPORT', 'AADHAR', 'ACADEMICS', 'IELTS'] as const).map((t) => ({ studentId: s!.id, docType: t, docUrl: `key/${t}.pdf` })),
+  });
   const created = await request(app).post('/api/applications').set('Authorization', student.auth)
-    .send({ universityId: uni.id, course: 'MSc' });
+    .send({ universityName: 'University of Manchester', course: 'MSc' });
   return { appId: created.body.data.id as string };
 }
 

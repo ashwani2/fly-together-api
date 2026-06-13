@@ -21,7 +21,9 @@ export class LocalStorage implements StorageProvider {
   getSignedUrl(key: string): string {
     const expires = Math.floor(Date.now() / 1000) + env.SIGNED_URL_TTL_SECONDS;
     const sig = this.sign(key, expires);
-    return `/api/files/${encodeURIComponent(key)}?expires=${expires}&sig=${sig}`;
+    // base64url so the key (which contains "/") stays a single, safe path segment.
+    const enc = Buffer.from(key, 'utf8').toString('base64url');
+    return `/api/files/${enc}?expires=${expires}&sig=${sig}`;
   }
 
   verifySignedUrl(key: string, params: URLSearchParams): boolean {

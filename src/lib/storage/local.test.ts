@@ -13,7 +13,7 @@ describe('LocalStorage', () => {
     const key = await storage.put('a/passport.pdf', Buffer.from('hello'), 'application/pdf');
     expect(key).toContain('passport.pdf');
     const url = storage.getSignedUrl(key);
-    expect(url).toContain(encodeURIComponent(key));
+    expect(url).toContain(Buffer.from(key, 'utf8').toString('base64url'));
     expect(storage.verifySignedUrl(key, new URL(url, 'http://x').searchParams)).toBe(true);
   });
 });
