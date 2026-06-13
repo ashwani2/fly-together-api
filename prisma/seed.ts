@@ -1,30 +1,139 @@
 import { PrismaClient } from '@prisma/client';
+import type { ApplicationStatus, DocType, PaymentStatus } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient();
 
+/** Wipe everything in FK-safe order so `npm run seed` always yields a known-good state. */
+async function clean() {
+  await prisma.applicationTimeline.deleteMany();
+  await prisma.application.deleteMany();
+  await prisma.studentDocument.deleteMany();
+  await prisma.loanApplication.deleteMany();
+  await prisma.consent.deleteMany();
+  await prisma.passwordResetToken.deleteMany();
+  await prisma.auditLog.deleteMany();
+  await prisma.student.deleteMany();
+  await prisma.agent.deleteMany();
+  await prisma.user.deleteMany();
+  await prisma.course.deleteMany();
+  await prisma.university.deleteMany();
+  await prisma.accommodation.deleteMany();
+  await prisma.serviceProvider.deleteMany();
+  await prisma.partner.deleteMany();
+  await prisma.blog.deleteMany();
+  await prisma.testimonial.deleteMany();
+}
+
+const REQUIRED_DOCS: DocType[] = ['PASSPORT', 'AADHAR', 'ACADEMICS', 'IELTS'];
+
 async function main() {
+  await clean();
+
   // Demo users (password: Password1!)
   const passwordHash = await bcrypt.hash('Password1!', 10);
-  const admin = await prisma.user.upsert({
-    where: { email: 'admin@flytogether.com' },
-    update: {},
-    create: { email: 'admin@flytogether.com', passwordHash, role: 'ADMIN' },
+
+  await prisma.user.create({
+    data: { email: 'admin@flytogether.com', passwordHash, role: 'ADMIN' },
   });
-  const agentUser = await prisma.user.upsert({
-    where: { email: 'agent@flytogether.com' },
-    update: {},
-    create: { email: 'agent@flytogether.com', passwordHash, role: 'AGENT', agent: { create: { name: 'Premium Agent' } } },
+
+  const agentUser = await prisma.user.create({
+    data: { email: 'agent@flytogether.com', passwordHash, role: 'AGENT', agent: { create: { name: 'Premium Agent' } } },
+    include: { agent: true },
   });
-  const studentUser = await prisma.user.upsert({
-    where: { email: 'alex.j@example.com' },
-    update: {},
-    create: {
-      email: 'alex.j@example.com', passwordHash, role: 'STUDENT',
-      student: { create: { firstName: 'Alex', lastName: 'Johnson', profileCompletion: 65, isProfileCompleted: false } },
+  const agentId = agentUser.agent!.id;
+
+  // ---- Students + their course applications (so the admin queue is populated) ----
+  type DemoStudent = {
+    email: string;
+    firstName: string;
+    lastName: string;
+    phoneNumber: string;
+    profileCompletion: number;
+    completed: boolean;
+    withDocs: boolean;
+    agent: boolean;
+    application?: {
+      universityName: string;
+      course: string;
+      status: ApplicationStatus;
+      paymentStatus?: PaymentStatus;
+      paymentLink?: string;
+    };
+  };
+
+  const demoStudents: DemoStudent[] = [
+    {
+      email: 'alex.j@example.com', firstName: 'Alex', lastName: 'Johnson', phoneNumber: '+91 98200 11001',
+      profileCompletion: 100, completed: true, withDocs: true, agent: true,
+      application: { universityName: 'University of Oxford', course: 'Computer Science', status: 'VERIFICATION' },
     },
-  });
-  void admin; void agentUser; void studentUser;
+    {
+      email: 'maria.g@example.com', firstName: 'Maria', lastName: 'Garcia', phoneNumber: '+91 98200 11002',
+      profileCompletion: 100, completed: true, withDocs: true, agent: true,
+      application: { universityName: 'Imperial College London', course: 'Engineering', status: 'APPLICATION' },
+    },
+    {
+      email: 'chen.w@example.com', firstName: 'Chen', lastName: 'Wei', phoneNumber: '+91 98200 11003',
+      profileCompletion: 55, completed: false, withDocs: false, agent: false,
+      application: { universityName: 'University of Manchester', course: 'Physics', status: 'DOCUMENTS' },
+    },
+    {
+      email: 'sarah.m@example.com', firstName: 'Sarah', lastName: 'Miller', phoneNumber: '+91 98200 11004',
+      profileCompletion: 100, completed: true, withDocs: true, agent: true,
+      application: {
+        universityName: 'University College London', course: 'Business Analytics', status: 'PAYMENT',
+        paymentStatus: 'PENDING', paymentLink: 'https://pay.flytogether.com/inv/LFT-2024-8892',
+      },
+    },
+  ];
+
+  for (const d of demoStudents) {
+    const user = await prisma.user.create({
+      data: {
+        email: d.email, passwordHash, role: 'STUDENT', phoneNumber: d.phoneNumber,
+        student: {
+          create: {
+            firstName: d.firstName, lastName: d.lastName,
+            dob: new Date('2002-05-14'), address: '221B Baker Street, Mumbai',
+            profileCompletion: d.profileCompletion,
+            isProfileCompleted: d.completed,
+            isProfileVerified: d.agent && d.completed,
+            isDocSubmitted: d.withDocs,
+            agentId: d.agent ? agentId : null,
+            documents: d.withDocs
+              ? { create: REQUIRED_DOCS.map((docType) => ({
+                  docType,
+                  docUrl: `seed/${d.firstName.toLowerCase()}-${docType.toLowerCase()}.pdf`,
+                  status: 'VERIFIED',
+                })) }
+              : undefined,
+          },
+        },
+      },
+      include: { student: true },
+    });
+
+    if (d.application) {
+      const a = d.application;
+      await prisma.application.create({
+        data: {
+          studentId: user.student!.id,
+          universityName: a.universityName,
+          course: a.course,
+          status: a.status,
+          paymentStatus: a.paymentStatus ?? 'PENDING',
+          paymentLink: a.paymentLink ?? null,
+          timeline: {
+            create: [
+              { action: 'CREATED', actionTakenBy: user.id },
+              ...(a.status !== 'PROFILE' ? [{ action: `STATUS_${a.status}`, actionTakenBy: agentUser.id }] : []),
+            ],
+          },
+        },
+      });
+    }
+  }
 
   // Universities (from mockUniversities)
   const universities = [
