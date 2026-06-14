@@ -1,5 +1,31 @@
+import type { Prisma, ApplicationStatus } from '@prisma/client';
 import { prisma } from '../../lib/prisma.js';
 import { AppError } from '../../lib/errors.js';
+import { notifyApplicationAction } from '../notifications/service.js';
+
+const APPLICATION_STATUSES: ApplicationStatus[] = [
+  'CREATED', 'REJECTED', 'DOCUMENT_VERIFIED', 'SENT_TO_UNIVERSITY',
+  'PENDING_WITH_UNIVERSITY', 'VERIFIED_BY_UNIVERSITY', 'PAYMENT_PENDING', 'COMPLETED',
+];
+
+export interface ApplicationsQuery {
+  page?: number;
+  pageSize?: number;
+  search?: string;
+  status?: string;
+}
+
+export interface StudentsQuery {
+  page?: number;
+  pageSize?: number;
+  search?: string;
+}
+
+function paging(page?: number, pageSize?: number) {
+  const p = Math.max(1, Math.trunc(page ?? 1) || 1);
+  const ps = Math.min(100, Math.max(1, Math.trunc(pageSize ?? 10) || 10));
+  return { p, ps };
+}
 
 export async function stats() {
   const [students, agents, applications, documents, universities] = await Promise.all([
@@ -12,24 +38,52 @@ export async function stats() {
   return { students, agents, applications, documents, universities };
 }
 
-/** All course applications, enriched with the applicant and their assigned agent — for the admin queue. */
-export async function applications() {
-  const apps = await prisma.application.findMany({
-    orderBy: { createdAt: 'desc' },
-    include: {
-      student: {
-        select: {
-          id: true, firstName: true, lastName: true, profileCompletion: true,
-          isProfileCompleted: true, isProfileVerified: true,
-          user: { select: { email: true, phoneNumber: true } },
-          agent: { select: { id: true, name: true } },
-          _count: { select: { documents: true } },
+/**
+ * Paginated course applications for the admin queue, with optional server-side
+ * search (student name/email, university, course) and phase filtering.
+ */
+export async function applications(query: ApplicationsQuery = {}) {
+  const page = Math.max(1, Math.trunc(query.page ?? 1) || 1);
+  const pageSize = Math.min(100, Math.max(1, Math.trunc(query.pageSize ?? 10) || 10));
+  const search = query.search?.trim();
+  const status = query.status && APPLICATION_STATUSES.includes(query.status as ApplicationStatus)
+    ? (query.status as ApplicationStatus)
+    : undefined;
+
+  const where: Prisma.ApplicationWhereInput = {};
+  if (status) where.status = status;
+  if (search) {
+    where.OR = [
+      { universityName: { contains: search, mode: 'insensitive' } },
+      { course: { contains: search, mode: 'insensitive' } },
+      { student: { firstName: { contains: search, mode: 'insensitive' } } },
+      { student: { lastName: { contains: search, mode: 'insensitive' } } },
+      { student: { user: { email: { contains: search, mode: 'insensitive' } } } },
+    ];
+  }
+
+  const [total, apps] = await Promise.all([
+    prisma.application.count({ where }),
+    prisma.application.findMany({
+      where,
+      orderBy: { createdAt: 'desc' },
+      skip: (page - 1) * pageSize,
+      take: pageSize,
+      include: {
+        student: {
+          select: {
+            id: true, firstName: true, lastName: true, profileCompletion: true,
+            isProfileCompleted: true, isProfileVerified: true,
+            user: { select: { email: true, phoneNumber: true } },
+            agent: { select: { id: true, name: true } },
+            _count: { select: { documents: true } },
+          },
         },
       },
-    },
-  });
+    }),
+  ]);
 
-  return apps.map((a) => {
+  const items = apps.map((a) => {
     const s = a.student;
     const name = [s.firstName, s.lastName].filter(Boolean).join(' ').trim();
     return {
@@ -54,19 +108,40 @@ export async function applications() {
       agent: s.agent ? { id: s.agent.id, name: s.agent.name } : null,
     };
   });
+
+  return { items, total, page, pageSize, totalPages: Math.max(1, Math.ceil(total / pageSize)) };
 }
 
-/** All students for the admin student list. */
-export async function students() {
-  const rows = await prisma.student.findMany({
-    orderBy: { createdAt: 'desc' },
-    include: {
-      user: { select: { email: true, phoneNumber: true } },
-      agent: { select: { id: true, name: true } },
-      _count: { select: { documents: { where: { removed: false } } } },
-    },
-  });
-  return rows.map((s) => ({
+/** Paginated students for the admin student list, with optional server-side search. */
+export async function students(query: StudentsQuery = {}) {
+  const { p: page, ps: pageSize } = paging(query.page, query.pageSize);
+  const search = query.search?.trim();
+
+  const where: Prisma.StudentWhereInput = {};
+  if (search) {
+    where.OR = [
+      { firstName: { contains: search, mode: 'insensitive' } },
+      { lastName: { contains: search, mode: 'insensitive' } },
+      { user: { email: { contains: search, mode: 'insensitive' } } },
+    ];
+  }
+
+  const [total, rows] = await Promise.all([
+    prisma.student.count({ where }),
+    prisma.student.findMany({
+      where,
+      orderBy: { createdAt: 'desc' },
+      skip: (page - 1) * pageSize,
+      take: pageSize,
+      include: {
+        user: { select: { email: true, phoneNumber: true } },
+        agent: { select: { id: true, name: true } },
+        _count: { select: { documents: { where: { removed: false } } } },
+      },
+    }),
+  ]);
+
+  const items = rows.map((s) => ({
     id: s.id,
     userId: s.userId,
     firstName: s.firstName,
@@ -83,6 +158,8 @@ export async function students() {
     agent: s.agent ? { id: s.agent.id, name: s.agent.name } : null,
     createdAt: s.createdAt,
   }));
+
+  return { items, total, page, pageSize, totalPages: Math.max(1, Math.ceil(total / pageSize)) };
 }
 
 /** Single student detail with their documents. */
@@ -134,8 +211,10 @@ export async function assignAgent(applicationId: string, agentId: string | null,
   }
 
   await prisma.student.update({ where: { id: app.studentId }, data: { agentId: agentId ?? null } });
+  const action = agentId ? 'AGENT_ASSIGNED' : 'AGENT_UNASSIGNED';
   await prisma.applicationTimeline.create({
-    data: { applicationId, action: agentId ? 'AGENT_ASSIGNED' : 'AGENT_UNASSIGNED', actionTakenBy: adminUserId },
+    data: { applicationId, action, actionTakenBy: adminUserId },
   });
+  await notifyApplicationAction(applicationId, action);
   return { success: true };
 }

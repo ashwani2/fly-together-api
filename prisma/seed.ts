@@ -1,5 +1,5 @@
 import { PrismaClient } from '@prisma/client';
-import type { ApplicationStatus, DocType, PaymentStatus } from '@prisma/client';
+import type { ApplicationStatus, DocType, AcademicSubType, PaymentStatus, Gender } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 import fs from 'node:fs/promises';
 import path from 'node:path';
@@ -8,6 +8,7 @@ const prisma = new PrismaClient();
 
 /** Wipe everything in FK-safe order so `npm run seed` always yields a known-good state. */
 async function clean() {
+  await prisma.notification.deleteMany();
   await prisma.applicationTimeline.deleteMany();
   await prisma.application.deleteMany();
   await prisma.studentDocument.deleteMany();
@@ -27,7 +28,28 @@ async function clean() {
   await prisma.testimonial.deleteMany();
 }
 
-const REQUIRED_DOCS: DocType[] = ['PASSPORT', 'AADHAR', 'ACADEMICS', 'IELTS'];
+// Identity/test docs plus academic certificates (subtypes of ACADEMICS).
+const SEED_DOCS: { docType: DocType; subType?: AcademicSubType }[] = [
+  { docType: 'PASSPORT' },
+  { docType: 'AADHAR' },
+  { docType: 'IELTS' },
+  { docType: 'ACADEMICS', subType: 'TENTH' },
+  { docType: 'ACADEMICS', subType: 'TWELFTH' },
+  { docType: 'ACADEMICS', subType: 'GRADUATION' },
+];
+
+const docKey = (firstName: string, d: { docType: DocType; subType?: AcademicSubType }) =>
+  `seed/${firstName.toLowerCase()}-${d.docType.toLowerCase()}${d.subType ? '-' + d.subType.toLowerCase() : ''}.pdf`;
+
+const STATUS_TITLES: Record<string, string> = {
+  DOCUMENT_VERIFIED: 'Documents verified',
+  SENT_TO_UNIVERSITY: 'Sent to university',
+  PENDING_WITH_UNIVERSITY: 'Pending with university',
+  VERIFIED_BY_UNIVERSITY: 'Verified by university',
+  PAYMENT_PENDING: 'Payment pending',
+  COMPLETED: 'Application completed',
+  REJECTED: 'Application rejected',
+};
 
 async function main() {
   await clean();
@@ -36,11 +58,11 @@ async function main() {
   const passwordHash = await bcrypt.hash('Password1!', 10);
 
   await prisma.user.create({
-    data: { email: 'admin@flytogether.com', passwordHash, role: 'ADMIN' },
+    data: { email: 'admin@flytogether.com', passwordHash, role: 'ADMIN', gender: 'OTHERS' },
   });
 
   const agentUser = await prisma.user.create({
-    data: { email: 'agent@flytogether.com', passwordHash, role: 'AGENT', agent: { create: { name: 'Premium Agent' } } },
+    data: { email: 'agent@flytogether.com', passwordHash, role: 'AGENT', gender: 'FEMALE', agent: { create: { name: 'Premium Agent' } } },
     include: { agent: true },
   });
   const agentId = agentUser.agent!.id;
@@ -51,6 +73,7 @@ async function main() {
     firstName: string;
     lastName: string;
     phoneNumber: string;
+    gender: Gender;
     profileCompletion: number;
     completed: boolean;
     withDocs: boolean;
@@ -66,22 +89,22 @@ async function main() {
 
   const demoStudents: DemoStudent[] = [
     {
-      email: 'alex.j@example.com', firstName: 'Alex', lastName: 'Johnson', phoneNumber: '+91 98200 11001',
+      email: 'alex.j@example.com', firstName: 'Alex', lastName: 'Johnson', phoneNumber: '+91 98200 11001', gender: 'MALE',
       profileCompletion: 100, completed: true, withDocs: true, agent: true,
       application: { universityName: 'University of Oxford', course: 'Computer Science', status: 'DOCUMENT_VERIFIED' },
     },
     {
-      email: 'maria.g@example.com', firstName: 'Maria', lastName: 'Garcia', phoneNumber: '+91 98200 11002',
+      email: 'maria.g@example.com', firstName: 'Maria', lastName: 'Garcia', phoneNumber: '+91 98200 11002', gender: 'FEMALE',
       profileCompletion: 100, completed: true, withDocs: true, agent: true,
       application: { universityName: 'Imperial College London', course: 'Engineering', status: 'SENT_TO_UNIVERSITY' },
     },
     {
-      email: 'chen.w@example.com', firstName: 'Chen', lastName: 'Wei', phoneNumber: '+91 98200 11003',
+      email: 'chen.w@example.com', firstName: 'Chen', lastName: 'Wei', phoneNumber: '+91 98200 11003', gender: 'MALE',
       profileCompletion: 55, completed: false, withDocs: false, agent: false,
       application: { universityName: 'University of Manchester', course: 'Physics', status: 'CREATED' },
     },
     {
-      email: 'sarah.m@example.com', firstName: 'Sarah', lastName: 'Miller', phoneNumber: '+91 98200 11004',
+      email: 'sarah.m@example.com', firstName: 'Sarah', lastName: 'Miller', phoneNumber: '+91 98200 11004', gender: 'FEMALE',
       profileCompletion: 100, completed: true, withDocs: true, agent: true,
       application: {
         universityName: 'University College London', course: 'Business Analytics', status: 'PAYMENT_PENDING',
@@ -104,16 +127,15 @@ async function main() {
   await fs.mkdir(path.join(uploadDir, 'seed'), { recursive: true });
   for (const d of demoStudents) {
     if (!d.withDocs) continue;
-    for (const docType of REQUIRED_DOCS) {
-      const key = `seed/${d.firstName.toLowerCase()}-${docType.toLowerCase()}.pdf`;
-      await fs.writeFile(path.join(uploadDir, key), minimalPdf);
+    for (const spec of SEED_DOCS) {
+      await fs.writeFile(path.join(uploadDir, docKey(d.firstName, spec)), minimalPdf);
     }
   }
 
   for (const d of demoStudents) {
     const user = await prisma.user.create({
       data: {
-        email: d.email, passwordHash, role: 'STUDENT', phoneNumber: d.phoneNumber,
+        email: d.email, passwordHash, role: 'STUDENT', phoneNumber: d.phoneNumber, gender: d.gender,
         student: {
           create: {
             firstName: d.firstName, lastName: d.lastName,
@@ -124,9 +146,10 @@ async function main() {
             isDocSubmitted: d.withDocs,
             agentId: d.agent ? agentId : null,
             documents: d.withDocs
-              ? { create: REQUIRED_DOCS.map((docType) => ({
-                  docType,
-                  docUrl: `seed/${d.firstName.toLowerCase()}-${docType.toLowerCase()}.pdf`,
+              ? { create: SEED_DOCS.map((spec) => ({
+                  docType: spec.docType,
+                  subType: spec.subType ?? null,
+                  docUrl: docKey(d.firstName, spec),
                   status: 'VERIFIED',
                 })) }
               : undefined,
@@ -138,7 +161,7 @@ async function main() {
 
     if (d.application) {
       const a = d.application;
-      await prisma.application.create({
+      const created = await prisma.application.create({
         data: {
           studentId: user.student!.id,
           universityName: a.universityName,
@@ -153,6 +176,19 @@ async function main() {
             ],
           },
         },
+      });
+
+      // Seed matching notifications (the latest one left unread for demo).
+      const ctx = `${a.universityName} — ${a.course}`;
+      const notifs: { title: string; message: string; read: boolean }[] = [
+        { title: 'Application created', message: `Your application for ${ctx} was submitted.`, read: true },
+      ];
+      if (a.status !== 'CREATED') {
+        const label = STATUS_TITLES[a.status] ?? a.status;
+        notifs.push({ title: label, message: `Your application for ${ctx} is now “${label}”.`, read: false });
+      }
+      await prisma.notification.createMany({
+        data: notifs.map((n) => ({ userId: user.id, applicationId: created.id, ...n })),
       });
     }
   }

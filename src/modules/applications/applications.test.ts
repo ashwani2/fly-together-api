@@ -42,7 +42,7 @@ describe('applications', () => {
     const res = await request(app).post('/api/applications').set('Authorization', auth)
       .send({ universityName: 'University of Oxford', course: 'MSc CS' });
     expect(res.status).toBe(201);
-    expect(res.body.data.status).toBe('PROFILE');
+    expect(res.body.data.status).toBe('CREATED');
     expect(res.body.data.universityName).toBe('University of Oxford');
     const timeline = await request(app).get(`/api/applications/${res.body.data.id}/timeline`).set('Authorization', auth);
     expect(timeline.body.data.length).toBe(1);

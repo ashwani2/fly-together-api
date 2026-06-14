@@ -21,6 +21,7 @@ import { applicationsRouter } from './modules/applications/routes.js';
 import { adminRouter } from './modules/admin/routes.js';
 import { auditRouter } from './modules/audit/routes.js';
 import { consentRouter } from './modules/consent/routes.js';
+import { notificationsRouter } from './modules/notifications/routes.js';
 
 export function createApp() {
   const app = express();
@@ -46,6 +47,7 @@ export function createApp() {
   app.use('/api/admin', adminRouter);
   app.use('/api/audit', auditRouter);
   app.use('/api/consent', consentRouter);
+  app.use('/api/notifications', notificationsRouter);
 
   app.use((_req, _res, next) => next(AppError.notFound('Route not found')));
   app.use(errorHandler);

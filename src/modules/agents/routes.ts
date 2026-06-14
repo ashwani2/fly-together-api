@@ -3,7 +3,7 @@ import { requireAuth } from '../../middleware/auth.js';
 import { requireRole } from '../../middleware/rbac.js';
 import { validate } from '../../middleware/validate.js';
 import { auditLog } from '../../middleware/audit.js';
-import { createAgentSchema } from './schema.js';
+import { createAgentSchema, verifyDocumentSchema } from './schema.js';
 import * as c from './controller.js';
 
 export const agentsRouter = Router();
@@ -12,4 +12,7 @@ agentsRouter.get('/', requireRole('ADMIN'), c.list);
 agentsRouter.post('/', requireRole('ADMIN'), validate(createAgentSchema), auditLog('CREATE', 'agent'), c.create);
 agentsRouter.delete('/:id', requireRole('ADMIN'), auditLog('DELETE', 'agent'), c.remove);
 agentsRouter.get('/me/students', requireRole('AGENT'), c.myStudents);
+agentsRouter.get('/me/applications', requireRole('AGENT'), c.myApplications);
+agentsRouter.get('/students/:studentId/documents/:docId/url', requireRole('AGENT'), c.studentDocumentUrl);
+agentsRouter.patch('/documents/:id/verify', requireRole('AGENT'), validate(verifyDocumentSchema), auditLog('VERIFY', 'document'), c.verifyDocument);
 agentsRouter.patch('/students/:id/verify', requireRole('AGENT', 'ADMIN'), auditLog('VERIFY', 'student'), c.verifyStudent);

@@ -13,4 +13,4 @@ applicationsRouter.get('/', c.list);
 applicationsRouter.get('/:id', c.get);
 applicationsRouter.get('/:id/timeline', c.timeline);
 applicationsRouter.patch('/:id/status', requireRole('ADMIN', 'AGENT'), validate(statusSchema), auditLog('UPDATE', 'application'), c.setStatus);
-applicationsRouter.patch('/:id/payment', requireRole('ADMIN'), validate(paymentSchema), auditLog('PAYMENT', 'application'), c.setPayment);
+applicationsRouter.patch('/:id/payment', requireRole('ADMIN', 'AGENT'), validate(paymentSchema), auditLog('PAYMENT', 'application'), c.setPayment);

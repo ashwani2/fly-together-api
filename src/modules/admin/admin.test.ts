@@ -33,8 +33,9 @@ describe('admin + gdpr', () => {
 
     const list = await request(app).get('/api/admin/applications').set('Authorization', auth);
     expect(list.status).toBe(200);
-    expect(list.body.data[0]).toMatchObject({ universityName: 'Oxford', course: 'CS' });
-    expect(list.body.data[0].student).toMatchObject({ name: 'Ann Lee', email: 'applicant@test.com' });
+    expect(list.body.data).toMatchObject({ total: 1, page: 1 });
+    expect(list.body.data.items[0]).toMatchObject({ universityName: 'Oxford', course: 'CS' });
+    expect(list.body.data.items[0].student).toMatchObject({ name: 'Ann Lee', email: 'applicant@test.com' });
 
     const assign = await request(app).patch(`/api/admin/applications/${application.id}/assign-agent`)
       .set('Authorization', auth).send({ agentId: agent!.id });
@@ -44,7 +45,7 @@ describe('admin + gdpr', () => {
     expect(updated!.agentId).toBe(agent!.id);
 
     const after = await request(app).get('/api/admin/applications').set('Authorization', auth);
-    expect(after.body.data[0].agent).toMatchObject({ id: agent!.id });
+    expect(after.body.data.items[0].agent).toMatchObject({ id: agent!.id });
   });
 
   it('forbids non-admin from reading audit logs', async () => {

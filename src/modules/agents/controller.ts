@@ -16,3 +16,15 @@ export async function myStudents(req: Request, res: Response, next: NextFunction
 export async function verifyStudent(req: Request, res: Response, next: NextFunction) {
   try { res.json({ data: await service.verifyStudent(req.params.id) }); } catch (e) { next(e); }
 }
+export async function myApplications(req: Request, res: Response, next: NextFunction) {
+  try { res.json({ data: await service.assignedApplications(req.user!.id) }); } catch (e) { next(e); }
+}
+export async function studentDocumentUrl(req: Request, res: Response, next: NextFunction) {
+  try {
+    res.json({ data: { url: await service.studentDocumentUrl(req.user!.id, req.params.studentId, req.params.docId) } });
+  } catch (e) { next(e); }
+}
+export async function verifyDocument(req: Request, res: Response, next: NextFunction) {
+  try { res.json({ data: await service.verifyDocument(req.user!.id, req.params.id, req.body.status) }); }
+  catch (e) { next(e); }
+}

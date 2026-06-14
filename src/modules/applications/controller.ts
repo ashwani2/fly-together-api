@@ -11,13 +11,20 @@ export async function get(req: Request, res: Response, next: NextFunction) {
   try { res.json({ data: await service.get(req.params.id) }); } catch (e) { next(e); }
 }
 export async function timeline(req: Request, res: Response, next: NextFunction) {
-  try { res.json({ data: await service.timeline(req.params.id) }); } catch (e) { next(e); }
+  try {
+    const entries = await service.timeline(req.params.id);
+    // Students must not see who took each action — strip the actor.
+    const data = req.user!.role === 'STUDENT'
+      ? entries.map(({ actionTakenBy, ...rest }) => rest)
+      : entries;
+    res.json({ data });
+  } catch (e) { next(e); }
 }
 export async function setStatus(req: Request, res: Response, next: NextFunction) {
-  try { res.json({ data: await service.setStatus(req.params.id, req.user!.id, req.body.status, req.body.rejectionReason) }); }
+  try { res.json({ data: await service.setStatus(req.params.id, { id: req.user!.id, role: req.user!.role }, req.body.status, req.body.rejectionReason) }); }
   catch (e) { next(e); }
 }
 export async function setPayment(req: Request, res: Response, next: NextFunction) {
-  try { res.json({ data: await service.setPayment(req.params.id, req.user!.id, req.body.paymentStatus, req.body.paymentLink) }); }
+  try { res.json({ data: await service.setPayment(req.params.id, { id: req.user!.id, role: req.user!.role }, req.body.paymentStatus, req.body.paymentLink) }); }
   catch (e) { next(e); }
 }

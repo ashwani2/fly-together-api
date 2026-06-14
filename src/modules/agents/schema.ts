@@ -7,3 +7,9 @@ export const createAgentSchema = z.object({
     password: z.string().min(8),
   }),
 });
+
+export const verifyDocumentSchema = z.object({
+  body: z.object({
+    status: z.enum(['UPLOADED', 'PENDING', 'VERIFIED', 'REJECTED']),
+  }),
+});

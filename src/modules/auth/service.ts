@@ -1,5 +1,5 @@
 import crypto from 'node:crypto';
-import type { Role } from '@prisma/client';
+import type { Role, Gender } from '@prisma/client';
 import { prisma } from '../../lib/prisma.js';
 import { hashPassword, verifyPassword } from '../../lib/hash.js';
 import { signAccessToken, signRefreshToken } from '../../lib/jwt.js';
@@ -23,6 +23,7 @@ export async function register(input: {
   role: 'STUDENT' | 'AGENT';
   name?: string;
   phoneNumber?: string;
+  gender?: Gender;
 }) {
   const existing = await prisma.user.findUnique({ where: { email: input.email } });
   if (existing) throw AppError.conflict('Email already registered');
@@ -38,6 +39,7 @@ export async function register(input: {
       passwordHash: await hashPassword(input.password),
       role: input.role,
       phoneNumber: input.phoneNumber ?? null,
+      gender: input.gender ?? null,
       consents: { create: { consentType: 'DATA_PROCESSING', granted: true, version: '1.0' } },
       ...(input.role === 'STUDENT'
         ? { student: { create: { firstName, lastName } } }
@@ -66,8 +68,8 @@ export function rotateTokens(payload: { sub: string; role: Role }) {
   return tokensFor({ id: payload.sub, role: payload.role });
 }
 
-function publicUser(u: { id: string; email: string; role: Role; phoneNumber: string | null }) {
-  return { id: u.id, email: u.email, role: u.role, phoneNumber: u.phoneNumber };
+function publicUser(u: { id: string; email: string; role: Role; phoneNumber: string | null; gender?: Gender | null }) {
+  return { id: u.id, email: u.email, role: u.role, phoneNumber: u.phoneNumber, gender: u.gender ?? null };
 }
 
 export async function forgotPassword(email: string) {

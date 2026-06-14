@@ -8,6 +8,7 @@ export const registerSchema = z.object({
     consent: z.literal(true, { errorMap: () => ({ message: 'Consent is required' }) }),
     name: z.string().optional(),
     phoneNumber: z.string().min(1).optional(),
+    gender: z.enum(['MALE', 'FEMALE', 'OTHERS']).optional(),
   }),
 });
 

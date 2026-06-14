@@ -9,7 +9,10 @@ function completion(s: Record<string, unknown>): number {
 }
 
 export async function getProfile(userId: string) {
-  const student = await prisma.student.findUnique({ where: { userId } });
+  const student = await prisma.student.findUnique({
+    where: { userId },
+    include: { agent: { select: { id: true, name: true } } },
+  });
   if (!student) throw AppError.notFound('Student profile not found');
   return student;
 }

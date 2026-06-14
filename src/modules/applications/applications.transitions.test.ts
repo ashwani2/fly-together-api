@@ -23,11 +23,11 @@ describe('application transitions', () => {
     const { appId } = await setup();
     const admin = await createUser('ADMIN');
     const res = await request(app).patch(`/api/applications/${appId}/status`).set('Authorization', admin.auth)
-      .send({ status: 'VERIFICATION' });
+      .send({ status: 'DOCUMENT_VERIFIED' });
     expect(res.status).toBe(200);
-    expect(res.body.data.status).toBe('VERIFICATION');
+    expect(res.body.data.status).toBe('DOCUMENT_VERIFIED');
     const tl = await request(app).get(`/api/applications/${appId}/timeline`).set('Authorization', admin.auth);
-    expect(tl.body.data.map((t: any) => t.action)).toContain('STATUS_VERIFICATION');
+    expect(tl.body.data.map((t: any) => t.action)).toContain('STATUS_DOCUMENT_VERIFIED');
   });
 
   it('admin sets a payment link + status', async () => {

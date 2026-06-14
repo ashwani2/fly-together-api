@@ -1,6 +1,7 @@
 import type { ApplicationStatus, PaymentStatus, Role, DocType } from '@prisma/client';
 import { prisma } from '../../lib/prisma.js';
 import { AppError } from '../../lib/errors.js';
+import { notifyApplicationAction } from '../notifications/service.js';
 
 const REQUIRED_DOCS: DocType[] = ['PASSPORT', 'AADHAR', 'ACADEMICS', 'IELTS'];
 
@@ -54,20 +55,43 @@ export async function timeline(id: string) {
   return prisma.applicationTimeline.findMany({ where: { applicationId: id }, orderBy: { createdAt: 'asc' } });
 }
 
-export async function setStatus(id: string, userId: string, status: ApplicationStatus, rejectionReason?: string) {
-  await get(id);
+interface Actor { id: string; role: Role }
+
+/**
+ * Admins may act on any application; agents only on applications belonging to
+ * their assigned students. Returns the application's studentId.
+ */
+async function assertCanManage(applicationId: string, actor: Actor): Promise<string> {
+  const app = await prisma.application.findUnique({
+    where: { id: applicationId },
+    select: { id: true, student: { select: { id: true, agentId: true } } },
+  });
+  if (!app) throw AppError.notFound('Application not found');
+  if (actor.role === 'AGENT') {
+    const agent = await prisma.agent.findUnique({ where: { userId: actor.id }, select: { id: true } });
+    if (!agent || app.student.agentId !== agent.id) {
+      throw AppError.forbidden('You can only manage applications of your assigned students.');
+    }
+  }
+  return app.student.id;
+}
+
+export async function setStatus(id: string, actor: Actor, status: ApplicationStatus, rejectionReason?: string) {
+  await assertCanManage(id, actor);
   const item = await prisma.application.update({ where: { id }, data: { status, rejectionReason } });
   await prisma.applicationTimeline.create({
-    data: { applicationId: id, action: `STATUS_${status}`, actionTakenBy: userId },
+    data: { applicationId: id, action: `STATUS_${status}`, actionTakenBy: actor.id },
   });
+  await notifyApplicationAction(id, `STATUS_${status}`);
   return item;
 }
 
-export async function setPayment(id: string, userId: string, paymentStatus: PaymentStatus, paymentLink?: string) {
-  await get(id);
+export async function setPayment(id: string, actor: Actor, paymentStatus: PaymentStatus, paymentLink?: string) {
+  await assertCanManage(id, actor);
   const item = await prisma.application.update({ where: { id }, data: { paymentStatus, paymentLink } });
   await prisma.applicationTimeline.create({
-    data: { applicationId: id, action: `PAYMENT_${paymentStatus}`, actionTakenBy: userId },
+    data: { applicationId: id, action: `PAYMENT_${paymentStatus}`, actionTakenBy: actor.id },
   });
+  await notifyApplicationAction(id, `PAYMENT_${paymentStatus}`);
   return item;
 }
