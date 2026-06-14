@@ -16,7 +16,13 @@ filesRouter.get('/:key', async (req, res, next) => {
     const storage = getStorage();
     const params = new URLSearchParams(req.query as Record<string, string>);
     if (!storage.verifySignedUrl(key, params)) throw AppError.forbidden('Invalid or expired link');
-    const data = await storage.read(key);
+    let data: Buffer;
+    try {
+      data = await storage.read(key);
+    } catch (readErr: any) {
+      if (readErr?.code === 'ENOENT') throw AppError.notFound('File not found');
+      throw readErr;
+    }
     const ext = key.split('.').pop()?.toLowerCase();
     const mime =
       ext === 'pdf' ? 'application/pdf' :

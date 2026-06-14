@@ -11,3 +11,6 @@ adminRouter.use(requireAuth, requireRole('ADMIN'));
 adminRouter.get('/stats', c.stats);
 adminRouter.get('/applications', c.applications);
 adminRouter.patch('/applications/:id/assign-agent', validate(assignAgentSchema), auditLog('ASSIGN_AGENT', 'application'), c.assignAgent);
+adminRouter.get('/students', c.studentsList);
+adminRouter.get('/students/:id', c.studentDetail);
+adminRouter.get('/students/:id/documents/:docId/url', c.studentDocumentUrl);

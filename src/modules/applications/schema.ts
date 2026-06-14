@@ -6,7 +6,16 @@ export const createApplicationSchema = z.object({
 
 export const statusSchema = z.object({
   body: z.object({
-    status: z.enum(['PROFILE', 'DOCUMENTS', 'VERIFICATION', 'APPLICATION', 'PAYMENT', 'COMPLETED']),
+    status: z.enum([
+      'CREATED',
+      'REJECTED',
+      'DOCUMENT_VERIFIED',
+      'SENT_TO_UNIVERSITY',
+      'PENDING_WITH_UNIVERSITY',
+      'VERIFIED_BY_UNIVERSITY',
+      'PAYMENT_PENDING',
+      'COMPLETED',
+    ]),
     rejectionReason: z.string().optional(),
   }),
 });

@@ -1,6 +1,8 @@
 import { PrismaClient } from '@prisma/client';
 import type { ApplicationStatus, DocType, PaymentStatus } from '@prisma/client';
 import bcrypt from 'bcryptjs';
+import fs from 'node:fs/promises';
+import path from 'node:path';
 
 const prisma = new PrismaClient();
 
@@ -66,27 +68,47 @@ async function main() {
     {
       email: 'alex.j@example.com', firstName: 'Alex', lastName: 'Johnson', phoneNumber: '+91 98200 11001',
       profileCompletion: 100, completed: true, withDocs: true, agent: true,
-      application: { universityName: 'University of Oxford', course: 'Computer Science', status: 'VERIFICATION' },
+      application: { universityName: 'University of Oxford', course: 'Computer Science', status: 'DOCUMENT_VERIFIED' },
     },
     {
       email: 'maria.g@example.com', firstName: 'Maria', lastName: 'Garcia', phoneNumber: '+91 98200 11002',
       profileCompletion: 100, completed: true, withDocs: true, agent: true,
-      application: { universityName: 'Imperial College London', course: 'Engineering', status: 'APPLICATION' },
+      application: { universityName: 'Imperial College London', course: 'Engineering', status: 'SENT_TO_UNIVERSITY' },
     },
     {
       email: 'chen.w@example.com', firstName: 'Chen', lastName: 'Wei', phoneNumber: '+91 98200 11003',
       profileCompletion: 55, completed: false, withDocs: false, agent: false,
-      application: { universityName: 'University of Manchester', course: 'Physics', status: 'DOCUMENTS' },
+      application: { universityName: 'University of Manchester', course: 'Physics', status: 'CREATED' },
     },
     {
       email: 'sarah.m@example.com', firstName: 'Sarah', lastName: 'Miller', phoneNumber: '+91 98200 11004',
       profileCompletion: 100, completed: true, withDocs: true, agent: true,
       application: {
-        universityName: 'University College London', course: 'Business Analytics', status: 'PAYMENT',
+        universityName: 'University College London', course: 'Business Analytics', status: 'PAYMENT_PENDING',
         paymentStatus: 'PENDING', paymentLink: 'https://pay.flytogether.com/inv/LFT-2024-8892',
       },
     },
   ];
+
+  // Write placeholder PDF files so signed-URL previews work in dev.
+  const uploadDir = process.env.UPLOAD_DIR ?? 'uploads';
+  const minimalPdf = Buffer.from(
+    '%PDF-1.4\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj\n' +
+    '2 0 obj<</Type/Pages/Kids[3 0 R]/Count 1>>endobj\n' +
+    '3 0 obj<</Type/Page/MediaBox[0 0 612 792]/Parent 2 0 R/Contents 4 0 R/Resources<</Font<</F1 5 0 R>>>>>>endobj\n' +
+    '4 0 obj<</Length 44>>stream\nBT /F1 18 Tf 72 720 Td (Demo Document) Tj ET\nendstream endobj\n' +
+    '5 0 obj<</Type/Font/Subtype/Type1/BaseFont/Helvetica>>endobj\n' +
+    'xref\n0 6\n0000000000 65535 f \ntrailer<</Size 6/Root 1 0 R>>\nstartxref\n9\n%%EOF\n',
+    'utf8',
+  );
+  await fs.mkdir(path.join(uploadDir, 'seed'), { recursive: true });
+  for (const d of demoStudents) {
+    if (!d.withDocs) continue;
+    for (const docType of REQUIRED_DOCS) {
+      const key = `seed/${d.firstName.toLowerCase()}-${docType.toLowerCase()}.pdf`;
+      await fs.writeFile(path.join(uploadDir, key), minimalPdf);
+    }
+  }
 
   for (const d of demoStudents) {
     const user = await prisma.user.create({
@@ -127,7 +149,7 @@ async function main() {
           timeline: {
             create: [
               { action: 'CREATED', actionTakenBy: user.id },
-              ...(a.status !== 'PROFILE' ? [{ action: `STATUS_${a.status}`, actionTakenBy: agentUser.id }] : []),
+              ...(a.status !== 'CREATED' ? [{ action: `STATUS_${a.status}`, actionTakenBy: agentUser.id }] : []),
             ],
           },
         },

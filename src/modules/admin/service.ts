@@ -38,6 +38,7 @@ export async function applications() {
       course: a.course,
       status: a.status,
       paymentStatus: a.paymentStatus,
+      paymentLink: a.paymentLink,
       rejectionReason: a.rejectionReason,
       createdAt: a.createdAt,
       student: {
@@ -53,6 +54,73 @@ export async function applications() {
       agent: s.agent ? { id: s.agent.id, name: s.agent.name } : null,
     };
   });
+}
+
+/** All students for the admin student list. */
+export async function students() {
+  const rows = await prisma.student.findMany({
+    orderBy: { createdAt: 'desc' },
+    include: {
+      user: { select: { email: true, phoneNumber: true } },
+      agent: { select: { id: true, name: true } },
+      _count: { select: { documents: { where: { removed: false } } } },
+    },
+  });
+  return rows.map((s) => ({
+    id: s.id,
+    userId: s.userId,
+    firstName: s.firstName,
+    lastName: s.lastName,
+    email: s.user.email,
+    phoneNumber: s.user.phoneNumber,
+    dob: s.dob,
+    address: s.address,
+    profileCompletion: s.profileCompletion,
+    isProfileCompleted: s.isProfileCompleted,
+    isProfileVerified: s.isProfileVerified,
+    isDocSubmitted: s.isDocSubmitted,
+    documentCount: s._count.documents,
+    agent: s.agent ? { id: s.agent.id, name: s.agent.name } : null,
+    createdAt: s.createdAt,
+  }));
+}
+
+/** Single student detail with their documents. */
+export async function studentDetail(studentId: string) {
+  const s = await prisma.student.findUnique({
+    where: { id: studentId },
+    include: {
+      user: { select: { email: true, phoneNumber: true } },
+      agent: { select: { id: true, name: true } },
+      documents: { where: { removed: false }, orderBy: { createdAt: 'desc' } },
+    },
+  });
+  if (!s) throw AppError.notFound('Student not found');
+  return {
+    id: s.id,
+    userId: s.userId,
+    firstName: s.firstName,
+    lastName: s.lastName,
+    email: s.user.email,
+    phoneNumber: s.user.phoneNumber,
+    dob: s.dob,
+    address: s.address,
+    profileCompletion: s.profileCompletion,
+    isProfileCompleted: s.isProfileCompleted,
+    isProfileVerified: s.isProfileVerified,
+    isDocSubmitted: s.isDocSubmitted,
+    agent: s.agent ? { id: s.agent.id, name: s.agent.name } : null,
+    documents: s.documents,
+    createdAt: s.createdAt,
+  };
+}
+
+/** Signed URL for any student document — admin bypass (no ownership check). */
+export async function studentDocumentUrl(studentId: string, docId: string) {
+  const { getStorage } = await import('../../lib/storage/index.js');
+  const doc = await prisma.studentDocument.findUnique({ where: { id: docId } });
+  if (!doc || doc.studentId !== studentId || doc.removed) throw AppError.notFound('Document not found');
+  return getStorage().getSignedUrl(doc.docUrl);
 }
 
 /** Assign (or clear) the agent who handles the student behind an application. */

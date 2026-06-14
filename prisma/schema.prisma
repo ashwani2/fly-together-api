@@ -46,11 +46,13 @@ enum MediaType {
 }
 
 enum ApplicationStatus {
-  PROFILE
-  DOCUMENTS
-  VERIFICATION
-  APPLICATION
-  PAYMENT
+  CREATED
+  REJECTED
+  DOCUMENT_VERIFIED
+  SENT_TO_UNIVERSITY
+  PENDING_WITH_UNIVERSITY
+  VERIFIED_BY_UNIVERSITY
+  PAYMENT_PENDING
   COMPLETED
 }
 
@@ -232,7 +234,7 @@ model Application {
   student         Student             @relation(fields: [studentId], references: [id], onDelete: Cascade)
   universityName  String
   course          String
-  status          ApplicationStatus   @default(PROFILE)
+  status          ApplicationStatus   @default(CREATED)
   rejectionReason String?
   paymentLink     String?
   paymentStatus   PaymentStatus       @default(PENDING)
