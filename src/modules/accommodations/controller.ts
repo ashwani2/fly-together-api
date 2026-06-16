@@ -19,3 +19,26 @@ export async function update(req: Request, res: Response, next: NextFunction) {
 export async function remove(req: Request, res: Response, next: NextFunction) {
   try { res.json({ data: await service.remove(req.params.id) }); } catch (e) { next(e); }
 }
+
+// ── Bookings ──────────────────────────────────────────────────────────────────
+
+export async function createBooking(req: Request, res: Response, next: NextFunction) {
+  try {
+    const booking = await service.createBooking(req.user!.id, req.params.id, req.body);
+    res.status(201).json({ data: booking });
+  } catch (e) { next(e); }
+}
+
+export async function myBookings(req: Request, res: Response, next: NextFunction) {
+  try { res.json({ data: await service.myBookings(req.user!.id) }); } catch (e) { next(e); }
+}
+
+export async function listBookings(_req: Request, res: Response, next: NextFunction) {
+  try { res.json({ data: await service.listBookings() }); } catch (e) { next(e); }
+}
+
+export async function updateBookingStatus(req: Request, res: Response, next: NextFunction) {
+  try {
+    res.json({ data: await service.updateBookingStatus(req.params.bookingId, req.body.status) });
+  } catch (e) { next(e); }
+}

@@ -13,6 +13,7 @@ async function clean() {
   await prisma.application.deleteMany();
   await prisma.studentDocument.deleteMany();
   await prisma.loanApplication.deleteMany();
+  await prisma.accommodationBooking.deleteMany();
   await prisma.consent.deleteMany();
   await prisma.passwordResetToken.deleteMany();
   await prisma.auditLog.deleteMany();
@@ -198,6 +199,7 @@ async function main() {
     { name: 'University of Oxford', location: 'Oxford, UK', logo: 'https://logo.clearbit.com/ox.ac.uk', rating: 4.9, tuitionFee: '£28,000 - £45,000', description: 'The oldest university in the English-speaking world.', courses: ['Computer Science', 'Philosophy', 'Medicine'] },
     { name: 'Imperial College London', location: 'London, UK', logo: 'https://logo.clearbit.com/imperial.ac.uk', rating: 4.8, tuitionFee: '£32,000 - £50,000', description: 'A world-class university focusing on science, engineering, medicine and business.', courses: ['Engineering', 'Business', 'Natural Sciences'] },
     { name: 'University of Manchester', location: 'Manchester, UK', logo: 'https://logo.clearbit.com/manchester.ac.uk', rating: 4.6, tuitionFee: '£22,000 - £35,000', description: 'A prestigious Red Brick university with a rich heritage.', courses: ['Physics', 'Economics', 'Arts'] },
+    { name: 'University College London', location: 'London, UK', logo: 'https://logo.clearbit.com/ucl.ac.uk', rating: 4.7, tuitionFee: '£25,000 - £40,000', description: 'A leading multidisciplinary research university in central London.', courses: ['Business Analytics', 'Law', 'Architecture'] },
   ];
   for (const u of universities) {
     const { courses, ...rest } = u;
@@ -214,8 +216,10 @@ async function main() {
 
   // Accommodations (illustrative; FE Accommodation screen)
   await prisma.accommodation.createMany({ data: [
-    { name: 'Oxford Student Lodge', city: 'Oxford', universityProximity: 'University of Oxford', price: 'From £150/week', type: 'Studio', amenities: ['WiFi', 'Laundry', 'Gym'], image: 'https://picsum.photos/seed/acc1/400/300', description: 'Modern studios near campus.' },
-    { name: 'London City Rooms', city: 'London', universityProximity: 'Imperial College London', price: 'From £220/week', type: 'Shared', amenities: ['WiFi', 'Kitchen'], image: 'https://picsum.photos/seed/acc2/400/300', description: 'Affordable shared housing in central London.' },
+    { name: 'Oxford Student Lodge', city: 'Oxford', universityProximity: 'University of Oxford', price: 'From £150/week', type: 'Studio', amenities: ['WiFi', 'Laundry', 'Gym'], image: 'https://picsum.photos/seed/acc1/400/300', description: 'Modern studios near campus with all-inclusive bills.', lat: 51.7548, lng: -1.2545 },
+    { name: 'London City Rooms', city: 'London', universityProximity: 'Imperial College London', price: 'From £220/week', type: 'Shared', amenities: ['WiFi', 'Kitchen'], image: 'https://picsum.photos/seed/acc2/400/300', description: 'Affordable shared housing in central London, 10 mins from campus.', lat: 51.4988, lng: -0.1749 },
+    { name: 'Manchester Student Village', city: 'Manchester', universityProximity: 'University of Manchester', price: 'From £130/week', type: 'En-suite', amenities: ['WiFi', 'Gym', 'Common Room', 'Bike Storage'], image: 'https://picsum.photos/seed/acc3/400/300', description: 'Purpose-built student village in the heart of Manchester.', lat: 53.4668, lng: -2.2339 },
+    { name: 'UCL Bloomsbury Flats', city: 'London', universityProximity: 'University College London', price: 'From £250/week', type: 'Studio', amenities: ['WiFi', 'Kitchen', 'Concierge', 'Laundry'], image: 'https://picsum.photos/seed/acc4/400/300', description: 'Premium studios a short walk from UCL main campus.', lat: 51.5246, lng: -0.1340 },
   ] });
 
   // Home partners (from mockHomePartners)
