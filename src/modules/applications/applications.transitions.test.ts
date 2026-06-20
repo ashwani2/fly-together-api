@@ -12,7 +12,7 @@ async function setup() {
   });
   const created = await request(app).post('/api/applications').set('Authorization', student.auth)
     .send({ universityName: 'University of Manchester', course: 'MSc' });
-  return { appId: created.body.data.id as string };
+  return { appId: created.body.data.id as string, studentAuth: student.auth, studentId: s!.id };
 }
 
 describe('application transitions', () => {
@@ -38,6 +38,24 @@ describe('application transitions', () => {
     expect(res.status).toBe(200);
     expect(res.body.data.paymentStatus).toBe('COMPLETED');
     expect(res.body.data.paymentLink).toContain('flywire');
+  });
+
+  it('hides agent (un)assignment events from the student timeline but keeps them for admin', async () => {
+    const { appId, studentAuth } = await setup();
+    const agentUser = await createUser('AGENT', 'agent-for-tl@test.com');
+    const agent = await prisma.agent.findUnique({ where: { userId: agentUser.user.id } });
+    const admin = await createUser('ADMIN');
+
+    const assign = await request(app).patch(`/api/admin/applications/${appId}/assign-agent`)
+      .set('Authorization', admin.auth).send({ agentId: agent!.id });
+    expect(assign.status).toBe(200);
+
+    const adminTl = await request(app).get(`/api/applications/${appId}/timeline`).set('Authorization', admin.auth);
+    expect(adminTl.body.data.map((t: any) => t.action)).toContain('AGENT_ASSIGNED');
+
+    const studentTl = await request(app).get(`/api/applications/${appId}/timeline`).set('Authorization', studentAuth);
+    expect(studentTl.body.data.map((t: any) => t.action)).not.toContain('AGENT_ASSIGNED');
+    expect(studentTl.body.data.map((t: any) => t.action)).not.toContain('AGENT_UNASSIGNED');
   });
 
   it('a student cannot change status', async () => {

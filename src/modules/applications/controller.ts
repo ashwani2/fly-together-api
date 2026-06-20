@@ -13,9 +13,12 @@ export async function get(req: Request, res: Response, next: NextFunction) {
 export async function timeline(req: Request, res: Response, next: NextFunction) {
   try {
     const entries = await service.timeline(req.params.id);
-    // Students must not see who took each action — strip the actor.
+    // Students must not see who took each action — strip the actor — and
+    // agent (un)assignment is an internal action they should not see at all.
     const data = req.user!.role === 'STUDENT'
-      ? entries.map(({ actionTakenBy, ...rest }) => rest)
+      ? entries
+          .filter((e) => e.action !== 'AGENT_ASSIGNED' && e.action !== 'AGENT_UNASSIGNED')
+          .map(({ actionTakenBy, ...rest }) => rest)
       : entries;
     res.json({ data });
   } catch (e) { next(e); }
