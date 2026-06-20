@@ -1,6 +1,7 @@
 import type { DocType, DocStatus, AcademicSubType } from '@prisma/client';
 import { prisma } from '../../lib/prisma.js';
 import { getStorage } from '../../lib/storage/index.js';
+import { storedFileUrl, resolveStoredFileUrl } from '../../lib/storage/signing.js';
 import { AppError } from '../../lib/errors.js';
 import { notifyDocumentReview } from '../notifications/service.js';
 
@@ -14,7 +15,8 @@ export async function upload(userId: string, docType: DocType, file: Express.Mul
   const studentId = await studentIdFor(userId);
   const key = `${studentId}/${Date.now()}-${file.originalname}`;
   await getStorage().put(key, file.buffer, file.mimetype);
-  const doc = await prisma.studentDocument.create({ data: { studentId, docType, docUrl: key, subType: subType ?? null } });
+  // Persist the full backend URL (not just the key).
+  const doc = await prisma.studentDocument.create({ data: { studentId, docType, docUrl: storedFileUrl(key), subType: subType ?? null } });
   await prisma.student.update({ where: { id: studentId }, data: { isDocSubmitted: true } });
   return doc;
 }
@@ -35,7 +37,8 @@ export async function viewUrl(userId: string, docId: string): Promise<string> {
   const studentId = await studentIdFor(userId);
   const doc = await prisma.studentDocument.findUnique({ where: { id: docId } });
   if (!doc || doc.studentId !== studentId || doc.removed) throw AppError.notFound('Document not found');
-  return getStorage().getSignedUrl(doc.docUrl); // relative path: /api/files/<key>?expires=&sig=
+  // docUrl is already the full backend URL (legacy rows holding a bare key are resolved).
+  return resolveStoredFileUrl(doc.docUrl);
 }
 
 export async function verify(docId: string, status: DocStatus) {

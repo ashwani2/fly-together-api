@@ -1,8 +1,7 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import crypto from 'node:crypto';
-import { env } from '../../config/env.js';
 import type { StorageProvider } from './index.js';
+import { signedFilePath, verifyFileSignature } from './signing.js';
 
 export class LocalStorage implements StorageProvider {
   constructor(private baseDir: string) {}
@@ -14,25 +13,12 @@ export class LocalStorage implements StorageProvider {
     return key;
   }
 
-  private sign(key: string, expires: number): string {
-    return crypto.createHmac('sha256', env.SIGNED_URL_SECRET).update(`${key}:${expires}`).digest('hex');
-  }
-
   getSignedUrl(key: string): string {
-    const expires = Math.floor(Date.now() / 1000) + env.SIGNED_URL_TTL_SECONDS;
-    const sig = this.sign(key, expires);
-    // base64url so the key (which contains "/") stays a single, safe path segment.
-    const enc = Buffer.from(key, 'utf8').toString('base64url');
-    return `/api/files/${enc}?expires=${expires}&sig=${sig}`;
+    return signedFilePath(key);
   }
 
   verifySignedUrl(key: string, params: URLSearchParams): boolean {
-    const expires = Number(params.get('expires'));
-    const sig = params.get('sig');
-    if (!expires || !sig || expires < Math.floor(Date.now() / 1000)) return false;
-    const expected = this.sign(key, expires);
-    if (sig.length !== expected.length) return false;
-    return crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expected));
+    return verifyFileSignature(key, params);
   }
 
   read(key: string): Promise<Buffer> {

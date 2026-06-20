@@ -1,5 +1,10 @@
-import 'dotenv/config';
+import dotenv from 'dotenv';
 import { z } from 'zod';
+
+// Load the local `.env` only when env isn't already injected. UAT commands run
+// via `dotenv -e .env.uat -- <cmd>` pre-populate process.env, so we must NOT
+// load `.env` on top of them. Plain commands (local dev) load `.env` as usual.
+if (!process.env.DATABASE_URL) dotenv.config();
 
 const schema = z.object({
   DATABASE_URL: z.string().url(),
@@ -9,8 +14,15 @@ const schema = z.object({
   JWT_ACCESS_TTL: z.string().default('15m'),
   JWT_REFRESH_TTL: z.string().default('7d'),
   CORS_ORIGIN: z.string().default('http://localhost:3000'),
-  STORAGE_DRIVER: z.enum(['local', 's3']).default('local'),
+  // Public base URL of THIS backend — baked into stored document URLs (docUrl).
+  // Set per env: http://localhost:4000 (dev) / https://uat-api... (UAT).
+  BACKEND_URL: z.string().url().default('http://localhost:4000'),
+  STORAGE_DRIVER: z.enum(['local', 's3', 'cloudinary']).default('local'),
   UPLOAD_DIR: z.string().default('uploads'),
+  // Cloudinary — used when STORAGE_DRIVER=cloudinary (e.g. UAT). Optional otherwise.
+  CLOUDINARY_CLOUD_NAME: z.string().optional(),
+  CLOUDINARY_API_KEY: z.string().optional(),
+  CLOUDINARY_API_SECRET: z.string().optional(),
   SIGNED_URL_SECRET: z.string().min(8),
   SIGNED_URL_TTL_SECONDS: z.coerce.number().default(300),
   FRONTEND_URL: z.string().default('http://localhost:3000'),
@@ -26,5 +38,18 @@ const schema = z.object({
   AMBER_PARTNER_SLUG: z.string().default('erasmus-pl-ef53ec75'),
 });
 
-export const env = schema.parse(process.env);
+const parsed = schema
+  .refine(
+    (e) =>
+      e.STORAGE_DRIVER !== 'cloudinary' ||
+      (e.CLOUDINARY_CLOUD_NAME && e.CLOUDINARY_API_KEY && e.CLOUDINARY_API_SECRET),
+    {
+      message:
+        'STORAGE_DRIVER=cloudinary requires CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY and CLOUDINARY_API_SECRET',
+      path: ['STORAGE_DRIVER'],
+    },
+  )
+  .parse(process.env);
+
+export const env = parsed;
 export type Env = z.infer<typeof schema>;

@@ -1,6 +1,7 @@
 import type { Request, Response, NextFunction } from 'express';
 import { AppError } from '../../lib/errors.js';
 import * as service from './service.js';
+import { absoluteFileUrl } from '../../lib/url.js';
 
 export async function create(req: Request, res: Response, next: NextFunction) {
   try { res.status(201).json({ data: await service.create(req.user!.id, req.body) }); } catch (e) { next(e); }
@@ -21,7 +22,7 @@ export async function documentViewUrl(req: Request, res: Response, next: NextFun
     const storageKey = (req.body.key as string | undefined)?.trim();
     if (!storageKey) throw AppError.badRequest('key is required');
     const signedPath = await service.documentViewUrl(req.user!.id, req.user!.role, storageKey);
-    res.json({ data: { url: `${req.protocol}://${req.get('host')}${signedPath}` } });
+    res.json({ data: { url: absoluteFileUrl(req, signedPath) } });
   } catch (e) { next(e); }
 }
 

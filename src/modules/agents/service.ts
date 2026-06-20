@@ -112,8 +112,8 @@ export async function studentDocumentUrl(userId: string, studentId: string, docI
   const doc = await prisma.studentDocument.findUnique({ where: { id: docId } });
   if (!doc || doc.studentId !== studentId || doc.removed) throw AppError.notFound('Document not found');
 
-  const { getStorage } = await import('../../lib/storage/index.js');
-  return getStorage().getSignedUrl(doc.docUrl);
+  const { resolveStoredFileUrl } = await import('../../lib/storage/signing.js');
+  return resolveStoredFileUrl(doc.docUrl);
 }
 
 /** Verify (or set the status of) a document — scoped to this agent's students. */

@@ -192,12 +192,12 @@ export async function studentDetail(studentId: string) {
   };
 }
 
-/** Signed URL for any student document — admin bypass (no ownership check). */
+/** Full document URL — admin bypass (no ownership check). */
 export async function studentDocumentUrl(studentId: string, docId: string) {
-  const { getStorage } = await import('../../lib/storage/index.js');
+  const { resolveStoredFileUrl } = await import('../../lib/storage/signing.js');
   const doc = await prisma.studentDocument.findUnique({ where: { id: docId } });
   if (!doc || doc.studentId !== studentId || doc.removed) throw AppError.notFound('Document not found');
-  return getStorage().getSignedUrl(doc.docUrl);
+  return resolveStoredFileUrl(doc.docUrl);
 }
 
 /** Assign (or clear) the agent who handles the student behind an application. */

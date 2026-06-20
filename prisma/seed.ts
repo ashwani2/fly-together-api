@@ -1,13 +1,25 @@
 import { PrismaClient } from '@prisma/client';
 import type { ApplicationStatus, DocType, AcademicSubType, PaymentStatus, Gender } from '@prisma/client';
 import bcrypt from 'bcryptjs';
-import fs from 'node:fs/promises';
-import path from 'node:path';
+import { getStorage } from '../src/lib/storage/index.js';
+import { storedFileUrl, keyFromFileUrl } from '../src/lib/storage/signing.js';
 
 const prisma = new PrismaClient();
 
 /** Wipe everything in FK-safe order so `npm run seed` always yields a known-good state. */
 async function clean() {
+  // Remove previously-uploaded document files from storage (e.g. Cloudinary)
+  // before deleting their DB rows, so re-seeding doesn't orphan assets.
+  const existingDocs = await prisma.studentDocument.findMany({ select: { docUrl: true } });
+  if (existingDocs.length) {
+    const storage = getStorage();
+    await Promise.allSettled(
+      existingDocs.map((doc) =>
+        storage.delete(/^https?:\/\//i.test(doc.docUrl) ? keyFromFileUrl(doc.docUrl) : doc.docUrl),
+      ),
+    );
+  }
+
   await prisma.notification.deleteMany();
   await prisma.applicationTimeline.deleteMany();
   await prisma.application.deleteMany();
@@ -40,7 +52,7 @@ const SEED_DOCS: { docType: DocType; subType?: AcademicSubType }[] = [
 ];
 
 const docKey = (firstName: string, d: { docType: DocType; subType?: AcademicSubType }) =>
-  `seed/${firstName.toLowerCase()}-${d.docType.toLowerCase()}${d.subType ? '-' + d.subType.toLowerCase() : ''}.pdf`;
+  `seed/${firstName.toLowerCase()}-${d.docType.toLowerCase()}${d.subType ? '-' + d.subType.toLowerCase() : ''}.png`;
 
 const STATUS_TITLES: Record<string, string> = {
   DOCUMENT_VERIFIED: 'Documents verified',
@@ -114,22 +126,18 @@ async function main() {
     },
   ];
 
-  // Write placeholder PDF files so signed-URL previews work in dev.
-  const uploadDir = process.env.UPLOAD_DIR ?? 'uploads';
-  const minimalPdf = Buffer.from(
-    '%PDF-1.4\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj\n' +
-    '2 0 obj<</Type/Pages/Kids[3 0 R]/Count 1>>endobj\n' +
-    '3 0 obj<</Type/Page/MediaBox[0 0 612 792]/Parent 2 0 R/Contents 4 0 R/Resources<</Font<</F1 5 0 R>>>>>>endobj\n' +
-    '4 0 obj<</Length 44>>stream\nBT /F1 18 Tf 72 720 Td (Demo Document) Tj ET\nendstream endobj\n' +
-    '5 0 obj<</Type/Font/Subtype/Type1/BaseFont/Helvetica>>endobj\n' +
-    'xref\n0 6\n0000000000 65535 f \ntrailer<</Size 6/Root 1 0 R>>\nstartxref\n9\n%%EOF\n',
-    'utf8',
+  // Upload a placeholder image for each seeded doc through the ACTIVE storage
+  // driver (local disk in dev, Cloudinary in UAT) so signed previews resolve in
+  // every environment. PNG (not PDF) avoids Cloudinary's PDF-delivery gate.
+  const placeholderPng = Buffer.from(
+    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==',
+    'base64',
   );
-  await fs.mkdir(path.join(uploadDir, 'seed'), { recursive: true });
+  const storage = getStorage();
   for (const d of demoStudents) {
     if (!d.withDocs) continue;
     for (const spec of SEED_DOCS) {
-      await fs.writeFile(path.join(uploadDir, docKey(d.firstName, spec)), minimalPdf);
+      await storage.put(docKey(d.firstName, spec), placeholderPng, 'image/png');
     }
   }
 
@@ -150,7 +158,7 @@ async function main() {
               ? { create: SEED_DOCS.map((spec) => ({
                   docType: spec.docType,
                   subType: spec.subType ?? null,
-                  docUrl: docKey(d.firstName, spec),
+                  docUrl: storedFileUrl(docKey(d.firstName, spec)),
                   status: 'VERIFIED',
                 })) }
               : undefined,
