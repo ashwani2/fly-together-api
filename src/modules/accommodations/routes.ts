@@ -9,6 +9,7 @@ import * as c from './controller.js';
 export const accommodationsRouter = Router();
 
 // Static sub-routes must come before /:id
+accommodationsRouter.get('/explore', requireAuth, c.explore);
 accommodationsRouter.get('/my-bookings', requireAuth, c.myBookings);
 accommodationsRouter.get('/bookings', requireAuth, requireRole('ADMIN'), c.listBookings);
 accommodationsRouter.patch('/bookings/:bookingId', requireAuth, requireRole('ADMIN'), validate(updateBookingStatusSchema), c.updateBookingStatus);

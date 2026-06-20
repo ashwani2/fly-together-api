@@ -21,6 +21,9 @@ const schema = z.object({
   SMTP_USER: z.string().optional(),
   SMTP_PASS: z.string().optional(),
   MAIL_FROM: z.string().default('Fly Together <no-reply@flytogether.com>'),
+  // Amber Student partner accommodation search (third-party inventory feed).
+  AMBER_API_BASE: z.string().url().default('https://base.amberstudent.com/api/v0/leads/partners'),
+  AMBER_PARTNER_SLUG: z.string().default('erasmus-pl-ef53ec75'),
 });
 
 export const env = schema.parse(process.env);

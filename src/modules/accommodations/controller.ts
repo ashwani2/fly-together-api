@@ -1,5 +1,17 @@
 import type { Request, Response, NextFunction } from 'express';
 import * as service from './service.js';
+import { searchInventories } from './amber.js';
+
+// ── Partner (Amber) inventory search ────────────────────────────────────────────
+
+export async function explore(req: Request, res: Response, next: NextFunction) {
+  try {
+    const pageRaw = Number((req.query.page as string) ?? '1');
+    const page = Number.isFinite(pageRaw) && pageRaw > 0 ? Math.floor(pageRaw) : 1;
+    const q = typeof req.query.q === 'string' ? req.query.q : undefined;
+    res.json({ data: await searchInventories({ page, q }) });
+  } catch (e) { next(e); }
+}
 
 export async function list(req: Request, res: Response, next: NextFunction) {
   try {
