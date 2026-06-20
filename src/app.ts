@@ -23,10 +23,39 @@ import { auditRouter } from './modules/audit/routes.js';
 import { consentRouter } from './modules/consent/routes.js';
 import { notificationsRouter } from './modules/notifications/routes.js';
 
+// Allowed browser origins. CORS_ORIGIN may be a comma-separated list (e.g. the
+// Vercel production URL plus preview URLs). Trailing slashes are tolerated, and
+// "*" allows any origin. A trailing "*.domain" entry matches any subdomain
+// (handy for Vercel preview deployments, e.g. "https://*.vercel.app").
+const ALLOWED_ORIGINS = env.CORS_ORIGIN.split(',')
+  .map((o) => o.trim().replace(/\/$/, ''))
+  .filter(Boolean);
+
+function isAllowedOrigin(origin: string): boolean {
+  const o = origin.replace(/\/$/, '');
+  return ALLOWED_ORIGINS.some((allowed) => {
+    if (allowed === '*' || allowed === o) return true;
+    if (allowed.includes('*')) {
+      const re = new RegExp('^' + allowed.replace(/[.]/g, '\\.').replace(/\*/g, '[^.]+') + '$');
+      return re.test(o);
+    }
+    return false;
+  });
+}
+
 export function createApp() {
   const app = express();
   app.use(helmet());
-  app.use(cors({ origin: env.CORS_ORIGIN, credentials: true }));
+  app.use(
+    cors({
+      origin(origin, cb) {
+        // Non-browser requests (curl, server-to-server) have no Origin header.
+        if (!origin || isAllowedOrigin(origin)) return cb(null, true);
+        cb(new Error(`Not allowed by CORS: ${origin}`));
+      },
+      credentials: true,
+    }),
+  );
   app.use(express.json());
 
   app.get('/api/health', (_req, res) => res.json({ data: { status: 'ok' } }));
