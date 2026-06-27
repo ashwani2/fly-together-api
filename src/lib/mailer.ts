@@ -1,6 +1,12 @@
+import dns from 'node:dns';
 import nodemailer, { type Transporter } from 'nodemailer';
 import { env } from '../config/env.js';
 import { prisma } from './prisma.js';
+
+// Some hosts (e.g. Render) have no outbound IPv6 route. smtp.gmail.com resolves
+// to an IPv6 address first, so the SMTP connect fails with ENETUNREACH. Prefer
+// IPv4 results so mail works in those environments (and locally).
+dns.setDefaultResultOrder('ipv4first');
 
 let transporter: Transporter | null = null;
 let resolved = false;
