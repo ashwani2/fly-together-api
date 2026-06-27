@@ -1,12 +1,16 @@
 import dns from 'node:dns';
+import net from 'node:net';
 import nodemailer, { type Transporter } from 'nodemailer';
 import { env } from '../config/env.js';
 import { prisma } from './prisma.js';
 
-// Some hosts (e.g. Render) have no outbound IPv6 route. smtp.gmail.com resolves
-// to an IPv6 address first, so the SMTP connect fails with ENETUNREACH. Prefer
-// IPv4 results so mail works in those environments (and locally).
+// Some hosts (e.g. Render) have no outbound IPv6 route. smtp.gmail.com also
+// resolves to IPv6, and Node's "Happy Eyeballs" (autoSelectFamily, on by default
+// in Node 20+) races IPv6 + IPv4 and can surface the IPv6 ENETUNREACH error
+// instead of falling back to IPv4. So: prefer IPv4 in DNS results AND turn off
+// Happy Eyeballs so the SMTP socket connects over IPv4 only.
 dns.setDefaultResultOrder('ipv4first');
+(net as { setDefaultAutoSelectFamily?: (value: boolean) => void }).setDefaultAutoSelectFamily?.(false);
 
 let transporter: Transporter | null = null;
 let resolved = false;
