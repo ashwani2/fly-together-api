@@ -27,6 +27,10 @@ const schema = z.object({
   SIGNED_URL_TTL_SECONDS: z.coerce.number().default(300),
   FRONTEND_URL: z.string().default('http://localhost:3000'),
   RESET_TOKEN_TTL_MINUTES: z.coerce.number().default(60),
+  // Email delivery. Preference order: Brevo HTTP API → SMTP → console log.
+  // Render blocks outbound SMTP ports, so production uses Brevo (sends over
+  // HTTPS). SMTP still works locally. If neither is set, emails are logged.
+  BREVO_API_KEY: z.string().optional(),
   // SMTP is optional — if unset, reset emails are logged to the server console.
   SMTP_HOST: z.string().optional(),
   SMTP_PORT: z.coerce.number().optional(),

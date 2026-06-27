@@ -61,6 +61,47 @@ function logEmail(opts: { to: string; subject: string; html: string; text?: stri
 const plain = (opts: { html: string; text?: string }) =>
   opts.text ?? opts.html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
 
+/** Parse a `"Name <email@host>"` (or bare `email@host`) MAIL_FROM string. */
+function parseSender(mailFrom: string): { name?: string; email: string } {
+  const m = /^\s*"?([^"<]*?)"?\s*<([^>]+)>\s*$/.exec(mailFrom);
+  if (m) return { name: m[1].trim() || undefined, email: m[2].trim() };
+  return { email: mailFrom.trim() };
+}
+
+/**
+ * Send via Brevo's HTTP API (https, port 443) — works on hosts that block
+ * outbound SMTP (e.g. Render). Throws on a non-2xx response.
+ */
+async function sendViaBrevo(opts: {
+  to: string;
+  subject: string;
+  html: string;
+  text?: string;
+}): Promise<{ messageId: string | null; response: string | null }> {
+  const res = await fetch('https://api.brevo.com/v3/smtp/email', {
+    method: 'POST',
+    headers: {
+      'api-key': env.BREVO_API_KEY as string,
+      'content-type': 'application/json',
+      accept: 'application/json',
+    },
+    body: JSON.stringify({
+      sender: parseSender(env.MAIL_FROM),
+      to: [{ email: opts.to }],
+      subject: opts.subject,
+      htmlContent: opts.html,
+      textContent: plain(opts),
+    }),
+  });
+  const raw = await res.text();
+  let json: any = null;
+  try { json = raw ? JSON.parse(raw) : null; } catch { /* non-JSON body */ }
+  if (!res.ok) {
+    throw new Error(json?.message || `Brevo API error ${res.status}: ${raw.slice(0, 200)}`);
+  }
+  return { messageId: json?.messageId ?? null, response: `Brevo ${res.status}` };
+}
+
 /** Persist one row per email attempt. Never throws into the caller. */
 async function recordEmail(entry: {
   to: string;
@@ -82,6 +123,22 @@ async function recordEmail(entry: {
 export async function sendMail(opts: { to: string; subject: string; html: string; text?: string }): Promise<void> {
   const from = env.MAIL_FROM;
   const body = plain(opts);
+
+  // Preferred path: Brevo HTTP API (works on Render, which blocks SMTP).
+  if (env.BREVO_API_KEY) {
+    try {
+      const { messageId, response } = await sendViaBrevo(opts);
+      await recordEmail({ to: opts.to, from, subject: opts.subject, body, status: 'SENT', messageId, response });
+    } catch (e) {
+      const message = (e as Error).message;
+      console.error('[mailer] Brevo send failed:', message);
+      logEmail(opts, 'Brevo send failed — logged instead');
+      await recordEmail({ to: opts.to, from, subject: opts.subject, body, status: 'FAILED', error: message });
+    }
+    return;
+  }
+
+  // Fallback: SMTP (works locally; blocked on Render).
   const t = await getTransport();
 
   if (!t) {
