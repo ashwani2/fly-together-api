@@ -17,6 +17,9 @@ export const statusSchema = z.object({
       'COMPLETED',
     ]),
     rejectionReason: z.string().optional(),
+    // When true, the move is a rollback to a previous phase — recorded as a
+    // distinct ROLLBACK_<status> timeline event instead of STATUS_<status>.
+    rollback: z.boolean().optional(),
   }),
 });
 

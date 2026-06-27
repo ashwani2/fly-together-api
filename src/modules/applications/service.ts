@@ -84,13 +84,21 @@ async function assertCanManage(applicationId: string, actor: Actor): Promise<str
   return app.student.id;
 }
 
-export async function setStatus(id: string, actor: Actor, status: ApplicationStatus, rejectionReason?: string) {
+export async function setStatus(
+  id: string,
+  actor: Actor,
+  status: ApplicationStatus,
+  rejectionReason?: string,
+  rollback = false,
+) {
   await assertCanManage(id, actor);
   const item = await prisma.application.update({ where: { id }, data: { status, rejectionReason } });
+  // A rollback is recorded as a distinct event so timelines can show it differently.
+  const action = rollback ? `ROLLBACK_${status}` : `STATUS_${status}`;
   await prisma.applicationTimeline.create({
-    data: { applicationId: id, action: `STATUS_${status}`, actionTakenBy: actor.id },
+    data: { applicationId: id, action, actionTakenBy: actor.id },
   });
-  await notifyApplicationAction(id, `STATUS_${status}`);
+  await notifyApplicationAction(id, action);
   return item;
 }
 

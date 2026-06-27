@@ -24,7 +24,7 @@ export async function timeline(req: Request, res: Response, next: NextFunction) 
   } catch (e) { next(e); }
 }
 export async function setStatus(req: Request, res: Response, next: NextFunction) {
-  try { res.json({ data: await service.setStatus(req.params.id, { id: req.user!.id, role: req.user!.role }, req.body.status, req.body.rejectionReason) }); }
+  try { res.json({ data: await service.setStatus(req.params.id, { id: req.user!.id, role: req.user!.role }, req.body.status, req.body.rejectionReason, req.body.rollback) }); }
   catch (e) { next(e); }
 }
 export async function setPayment(req: Request, res: Response, next: NextFunction) {

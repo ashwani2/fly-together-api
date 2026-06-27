@@ -92,29 +92,46 @@ export async function emailCourseApplication(applicationId: string, action: stri
   const name = [app.student.firstName, app.student.lastName].filter(Boolean).join(' ') || app.student.user.email;
   const ctx = `${app.universityName} — ${app.course}`;
   const stage = COURSE_STATUS_LABELS[app.status] ?? app.status.replace(/_/g, ' ');
+  const isRollback = action.startsWith('ROLLBACK_');
   const phase =
     action === 'CREATED'
       ? 'submitted'
-      : action.startsWith('STATUS_')
-        ? COURSE_STATUS_LABELS[action.slice('STATUS_'.length)] ?? stage
-        : action.startsWith('PAYMENT_')
-          ? `payment ${action.slice('PAYMENT_'.length).toLowerCase()}`
-          : stage;
+      : isRollback
+        ? COURSE_STATUS_LABELS[action.slice('ROLLBACK_'.length)] ?? stage
+        : action.startsWith('STATUS_')
+          ? COURSE_STATUS_LABELS[action.slice('STATUS_'.length)] ?? stage
+          : action.startsWith('PAYMENT_')
+            ? `payment ${action.slice('PAYMENT_'.length).toLowerCase()}`
+            : stage;
 
   try {
     if (audience.student) {
       const subject = action === 'CREATED'
         ? `We’ve received your application — ${app.universityName}`
-        : `Your application update — ${phase}`;
-      const title = action === 'CREATED' ? 'Your application was submitted' : `Your application is now “${phase}”`;
+        : isRollback
+          ? `Your application moved back — ${phase}`
+          : `Your application update — ${phase}`;
+      const title = action === 'CREATED'
+        ? 'Your application was submitted'
+        : isRollback
+          ? `Your application was moved back to “${phase}”`
+          : `Your application is now “${phase}”`;
       await send([app.student.user.email], subject, title, [
         `<strong>University &amp; course:</strong> ${ctx}`,
         `<strong>Current stage:</strong> ${stage}`,
       ]);
     }
     if (audience.staff) {
-      const subject = action === 'CREATED' ? `New application — ${name}` : `Application update — ${name}: ${phase}`;
-      const title = action === 'CREATED' ? 'New course application submitted' : `Application moved to “${phase}”`;
+      const subject = action === 'CREATED'
+        ? `New application — ${name}`
+        : isRollback
+          ? `Application rolled back — ${name}: ${phase}`
+          : `Application update — ${name}: ${phase}`;
+      const title = action === 'CREATED'
+        ? 'New course application submitted'
+        : isRollback
+          ? `Application rolled back to “${phase}”`
+          : `Application moved to “${phase}”`;
       await send(await staffEmails(app.student.agentId), subject, title, [
         `<strong>Student:</strong> ${name}`,
         `<strong>University &amp; course:</strong> ${ctx}`,

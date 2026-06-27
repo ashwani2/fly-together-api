@@ -21,8 +21,16 @@ describe('mailer EmailLog (SMTP path)', () => {
   beforeEach(async () => {
     await prisma.emailLog.deleteMany({ where: { to: { in: [SENT_TO, FAIL_TO] } } });
     sendMailMock.mockReset();
+    // Tests run with email disabled by default — enable SMTP for this suite so
+    // the (mocked) nodemailer transport is exercised.
+    const e = env as { SMTP_HOST?: string; SMTP_PORT?: number; BREVO_API_KEY?: string };
+    e.BREVO_API_KEY = '';
+    e.SMTP_HOST = 'smtp.test.local';
+    e.SMTP_PORT = 587;
   });
   afterAll(async () => {
+    const e = env as { SMTP_HOST?: string };
+    e.SMTP_HOST = '';
     await prisma.emailLog.deleteMany({ where: { to: { in: [SENT_TO, FAIL_TO] } } });
     await prisma.$disconnect();
   });

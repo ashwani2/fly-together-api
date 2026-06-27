@@ -29,6 +29,11 @@ function describe(action: string, ctx: string): { title: string; message: string
   if (action === 'CREATED') return { title: 'Application created', message: `Your application for ${ctx} was submitted.` };
   if (action === 'AGENT_ASSIGNED') return { title: 'Advisor assigned', message: `An advisor is now handling your application for ${ctx}.` };
   if (action === 'AGENT_UNASSIGNED') return { title: 'Advisor updated', message: `Your advisor assignment changed for ${ctx}.` };
+  if (action.startsWith('ROLLBACK_')) {
+    const s = action.slice('ROLLBACK_'.length);
+    const label = STATUS_TITLES[s] ?? s.replace(/_/g, ' ');
+    return { title: `Moved back to ${label}`, message: `Your application for ${ctx} was moved back to “${label}”.` };
+  }
   if (action.startsWith('STATUS_')) {
     const s = action.slice('STATUS_'.length);
     const label = STATUS_TITLES[s] ?? s.replace(/_/g, ' ');

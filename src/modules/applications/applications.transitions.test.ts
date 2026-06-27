@@ -58,6 +58,26 @@ describe('application transitions', () => {
     expect(studentTl.body.data.map((t: any) => t.action)).not.toContain('AGENT_UNASSIGNED');
   });
 
+  it('records a rollback as a distinct ROLLBACK_ timeline event', async () => {
+    const { appId } = await setup();
+    const admin = await createUser('ADMIN');
+
+    // Forward to SENT_TO_UNIVERSITY, then roll back to DOCUMENT_VERIFIED.
+    await request(app).patch(`/api/applications/${appId}/status`).set('Authorization', admin.auth).send({ status: 'DOCUMENT_VERIFIED' });
+    await request(app).patch(`/api/applications/${appId}/status`).set('Authorization', admin.auth).send({ status: 'SENT_TO_UNIVERSITY' });
+
+    const res = await request(app).patch(`/api/applications/${appId}/status`).set('Authorization', admin.auth)
+      .send({ status: 'DOCUMENT_VERIFIED', rollback: true });
+    expect(res.status).toBe(200);
+    expect(res.body.data.status).toBe('DOCUMENT_VERIFIED');
+
+    const tl = await request(app).get(`/api/applications/${appId}/timeline`).set('Authorization', admin.auth);
+    const actions = tl.body.data.map((t: any) => t.action);
+    expect(actions).toContain('ROLLBACK_DOCUMENT_VERIFIED');
+    // The forward move stays a normal STATUS_ event — they're distinguishable.
+    expect(actions).toContain('STATUS_SENT_TO_UNIVERSITY');
+  });
+
   it('a student cannot change status', async () => {
     const { appId } = await setup();
     const student = await createUser('STUDENT', 'other-s@test.com');
