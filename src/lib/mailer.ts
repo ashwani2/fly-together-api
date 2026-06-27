@@ -12,21 +12,42 @@ import { prisma } from './prisma.js';
 dns.setDefaultResultOrder('ipv4first');
 (net as { setDefaultAutoSelectFamily?: (value: boolean) => void }).setDefaultAutoSelectFamily?.(false);
 
-let transporter: Transporter | null = null;
-let resolved = false;
+let transportPromise: Promise<Transporter | null> | null = null;
 
-function getTransport(): Transporter | null {
-  if (resolved) return transporter;
-  resolved = true;
-  if (env.SMTP_HOST && env.SMTP_PORT) {
-    transporter = nodemailer.createTransport({
-      host: env.SMTP_HOST,
-      port: env.SMTP_PORT,
-      secure: false,
-      auth: env.SMTP_USER ? { user: env.SMTP_USER, pass: env.SMTP_PASS } : undefined,
-    });
+/**
+ * Build the SMTP transport, connecting to an explicit IPv4 address.
+ *
+ * DNS-order / Happy-Eyeballs tweaks weren't enough on Render (no IPv6 route), so
+ * we resolve the host to IPv4 ourselves and hand nodemailer a literal IPv4 — then
+ * there's no hostname left for the socket to resolve to IPv6. `tls.servername`
+ * keeps SNI + certificate validation pointed at the real hostname.
+ */
+async function buildTransport(): Promise<Transporter | null> {
+  if (!(env.SMTP_HOST && env.SMTP_PORT)) return null;
+
+  let host = env.SMTP_HOST;
+  try {
+    const ipv4 = await dns.promises.resolve4(env.SMTP_HOST);
+    if (ipv4.length) host = ipv4[0];
+  } catch (e) {
+    console.error(`[mailer] could not resolve IPv4 for ${env.SMTP_HOST}:`, (e as Error).message);
   }
-  return transporter;
+  // Visible in the server logs — confirms this build is live and which IP is used.
+  console.log(`[mailer] SMTP transport → ${env.SMTP_HOST} (${host}):${env.SMTP_PORT}`);
+
+  return nodemailer.createTransport({
+    host,
+    port: env.SMTP_PORT,
+    secure: env.SMTP_PORT === 465,
+    requireTLS: true,
+    auth: env.SMTP_USER ? { user: env.SMTP_USER, pass: env.SMTP_PASS } : undefined,
+    tls: { servername: env.SMTP_HOST },
+  });
+}
+
+function getTransport(): Promise<Transporter | null> {
+  if (!transportPromise) transportPromise = buildTransport();
+  return transportPromise;
 }
 
 function logEmail(opts: { to: string; subject: string; html: string; text?: string }, reason: string) {
@@ -61,7 +82,7 @@ async function recordEmail(entry: {
 export async function sendMail(opts: { to: string; subject: string; html: string; text?: string }): Promise<void> {
   const from = env.MAIL_FROM;
   const body = plain(opts);
-  const t = getTransport();
+  const t = await getTransport();
 
   if (!t) {
     // No SMTP configured — log so the link is usable in development, and record it.
