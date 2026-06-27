@@ -364,6 +364,24 @@ model ApplicationTimeline {
   createdAt     DateTime    @default(now())
 }
 
+// One row per email send attempt. `status` is SENT (provider accepted),
+// FAILED (transport/auth error — see `error`), or SKIPPED (no SMTP configured).
+// `messageId`/`response` capture the provider's reply on success.
+model EmailLog {
+  id        String   @id @default(cuid())
+  to        String
+  from      String
+  subject   String
+  body      String
+  status    String   @default("SENT")
+  messageId String?
+  response  String?
+  error     String?
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+}
+
 model AuditLog {
   id        String   @id @default(cuid())
   userId    String?
