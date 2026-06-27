@@ -36,6 +36,17 @@ const schema = z.object({
   // Amber Student partner accommodation search (third-party inventory feed).
   AMBER_API_BASE: z.string().url().default('https://base.amberstudent.com/api/v0/leads/partners'),
   AMBER_PARTNER_SLUG: z.string().default('erasmus-pl-ef53ec75'),
+  // Flywire Agents Payments API. Used to initialize tuition payments and track
+  // their status. FLYWIRE_API_KEY is the X-Authentication-Key from the Agents
+  // portal (Settings > General > Integration Details). When unset, the Flywire
+  // endpoints return a 503 so the rest of the app keeps working.
+  FLYWIRE_API_BASE: z.string().url().default('https://api-platform.demo.flywire.com/agents'),
+  FLYWIRE_API_KEY: z.string().optional(),
+  // Sandbox test destination: FLYWIRE:ANI (non-integrated, EUR) or FLYWIRE:AIN (integrated).
+  FLYWIRE_DESTINATION_ID: z.string().default('FLYWIRE:ANI'),
+  // Default payer country (2-letter) for the Flywire subject — students have no
+  // country on their profile, so we fall back to this.
+  FLYWIRE_SUBJECT_COUNTRY: z.string().length(2).default('IN'),
 });
 
 const parsed = schema

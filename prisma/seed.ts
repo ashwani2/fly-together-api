@@ -245,9 +245,9 @@ async function main() {
 
   // Testimonials (from mockTestimonials)
   await prisma.testimonial.createMany({ data: [
-    { studentName: 'Aarav Sharma', universityName: 'University of Oxford', content: 'The journey from application to arrival was seamless.', mediaUrl: 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6', mediaType: 'IMAGE', avatarUrl: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Aarav' },
-    { studentName: 'Priya Patel', universityName: 'Imperial College London', content: 'Getting my visa and student loan was easy with the team.', mediaUrl: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330', mediaType: 'IMAGE', avatarUrl: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Priya' },
-    { studentName: 'Michael Chen', universityName: 'University of Manchester', content: 'The logistics service was a lifesaver.', mediaUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d', mediaType: 'IMAGE', avatarUrl: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Michael' },
+    { studentName: 'Aarav Sharma', universityName: 'University of Oxford', content: 'The journey from application to arrival was seamless.', mediaUrl: 'https://randomuser.me/api/portraits/men/32.jpg', mediaType: 'IMAGE', avatarUrl: 'https://randomuser.me/api/portraits/men/32.jpg' },
+    { studentName: 'Priya Patel', universityName: 'Imperial College London', content: 'Getting my visa and student loan was easy with the team.', mediaUrl: 'https://randomuser.me/api/portraits/women/44.jpg', mediaType: 'IMAGE', avatarUrl: 'https://randomuser.me/api/portraits/women/44.jpg' },
+    { studentName: 'Michael Chen', universityName: 'University of Manchester', content: 'The logistics service was a lifesaver.', mediaUrl: 'https://randomuser.me/api/portraits/men/67.jpg', mediaType: 'IMAGE', avatarUrl: 'https://randomuser.me/api/portraits/men/67.jpg' },
   ] });
 
   console.log('Seed complete.');

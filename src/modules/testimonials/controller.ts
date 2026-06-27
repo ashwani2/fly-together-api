@@ -1,5 +1,6 @@
 import type { Request, Response, NextFunction } from 'express';
 import * as service from './service.js';
+import { AppError } from '../../lib/errors.js';
 
 export async function list(_req: Request, res: Response, next: NextFunction) {
   try { res.json({ data: await service.list() }); } catch (e) { next(e); }
@@ -15,4 +16,10 @@ export async function update(req: Request, res: Response, next: NextFunction) {
 }
 export async function remove(req: Request, res: Response, next: NextFunction) {
   try { res.json({ data: await service.remove(req.params.id) }); } catch (e) { next(e); }
+}
+export async function uploadImage(req: Request, res: Response, next: NextFunction) {
+  try {
+    if (!req.file) throw AppError.badRequest('Image file is required');
+    res.status(201).json({ data: await service.uploadImage(req.file) });
+  } catch (e) { next(e); }
 }

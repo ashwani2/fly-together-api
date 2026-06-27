@@ -310,9 +310,45 @@ model Application {
   rejectionReason String?
   paymentLink     String?
   paymentStatus   PaymentStatus       @default(PENDING)
+  flywirePayment  FlywirePayment?
   timeline        ApplicationTimeline[]
   createdAt       DateTime            @default(now())
   updatedAt       DateTime            @updatedAt
+}
+
+// A Flywire payment initialized for an application. One per application.
+// `flywireStatus` holds the raw Flywire lifecycle value (PENDING / INITIATED /
+// GUARANTEED / DELIVERED / CANCELLED); the application's PaymentStatus is kept
+// in sync via the status mapper. `amount` is stored in the currency subunit.
+model FlywirePayment {
+  id            String      @id @default(cuid())
+  applicationId String      @unique
+  application   Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  flywireId     String      @unique
+  reference     String?
+  payLink       String?
+  flywireStatus String      @default("PENDING")
+  amount        Int
+  currency      String
+  destinationId String
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+}
+
+// A lead captured when a visitor generates a Statement of Purpose from the
+// public landing-page generator. The generator needs no account, so these are
+// prospective-student leads the admin team can follow up on. Stores exactly the
+// details the visitor entered into the generator form.
+model SopLead {
+  id         String   @id @default(cuid())
+  fullName   String
+  country    String?
+  university String
+  campus     String?
+  course     String
+  createdAt  DateTime @default(now())
+
+  @@index([createdAt])
 }
 
 model ApplicationTimeline {
@@ -321,6 +357,10 @@ model ApplicationTimeline {
   application   Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
   action        String
   actionTakenBy String?
+  // For MEETING_SCHEDULED entries: the Google Meet link and the scheduled time,
+  // shown on the student and admin/agent timelines.
+  meetingLink   String?
+  meetingAt     DateTime?
   createdAt     DateTime    @default(now())
 }
 

@@ -18,16 +18,27 @@ function getTransport(): Transporter | null {
   return transporter;
 }
 
+function logEmail(opts: { to: string; subject: string; html: string; text?: string }, reason: string) {
+  console.log(`\n========== EMAIL (${reason}) ==========`);
+  console.log('To:      ', opts.to);
+  console.log('Subject: ', opts.subject);
+  console.log(opts.text ?? opts.html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim());
+  console.log('================================================\n');
+}
+
 export async function sendMail(opts: { to: string; subject: string; html: string; text?: string }): Promise<void> {
   const t = getTransport();
   if (!t) {
     // No SMTP configured — log so the link is usable in development.
-    console.log('\n========== EMAIL (no SMTP configured) ==========');
-    console.log('To:      ', opts.to);
-    console.log('Subject: ', opts.subject);
-    console.log(opts.text ?? opts.html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim());
-    console.log('================================================\n');
+    logEmail(opts, 'no SMTP configured');
     return;
   }
-  await t.sendMail({ from: env.MAIL_FROM, to: opts.to, subject: opts.subject, html: opts.html, text: opts.text });
+  try {
+    await t.sendMail({ from: env.MAIL_FROM, to: opts.to, subject: opts.subject, html: opts.html, text: opts.text });
+  } catch (e) {
+    // Don't let a transport/auth error (e.g. a Gmail App Password not yet set)
+    // break the calling flow — log the failure and the content instead.
+    console.error('[mailer] send failed:', (e as Error).message);
+    logEmail(opts, 'send failed — logged instead');
+  }
 }

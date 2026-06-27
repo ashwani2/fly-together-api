@@ -22,6 +22,7 @@ import { adminRouter } from './modules/admin/routes.js';
 import { auditRouter } from './modules/audit/routes.js';
 import { consentRouter } from './modules/consent/routes.js';
 import { notificationsRouter } from './modules/notifications/routes.js';
+import { sopLeadsRouter } from './modules/sopLeads/routes.js';
 
 // Allowed browser origins. CORS_ORIGIN may be a comma-separated list (e.g. the
 // Vercel production URL plus preview URLs). Trailing slashes are tolerated, and
@@ -77,6 +78,7 @@ export function createApp() {
   app.use('/api/audit', auditRouter);
   app.use('/api/consent', consentRouter);
   app.use('/api/notifications', notificationsRouter);
+  app.use('/api/sop-leads', sopLeadsRouter);
 
   app.use((_req, _res, next) => next(AppError.notFound('Route not found')));
   app.use(errorHandler);

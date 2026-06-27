@@ -30,4 +30,39 @@ describe('testimonials', () => {
     const res = await request(app).post('/api/testimonials').set('Authorization', auth).send(sample);
     expect(res.status).toBe(403);
   });
+
+  // 1×1 PNG.
+  const PNG = Buffer.from(
+    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
+    'base64',
+  );
+
+  it('admin can upload a testimonial photo and gets a permanent URL', async () => {
+    const { auth } = await createUser('ADMIN');
+    const res = await request(app)
+      .post('/api/testimonials/upload-image')
+      .set('Authorization', auth)
+      .attach('file', PNG, { filename: 'face.png', contentType: 'image/png' });
+    expect(res.status).toBe(201);
+    expect(typeof res.body.data.url).toBe('string');
+    expect(res.body.data.url).toContain('/api/files/');
+  });
+
+  it('rejects a non-image upload', async () => {
+    const { auth } = await createUser('ADMIN');
+    const res = await request(app)
+      .post('/api/testimonials/upload-image')
+      .set('Authorization', auth)
+      .attach('file', Buffer.from('not an image'), { filename: 'note.txt', contentType: 'text/plain' });
+    expect(res.status).toBe(400);
+  });
+
+  it('forbids non-admins from uploading', async () => {
+    const { auth } = await createUser('STUDENT');
+    const res = await request(app)
+      .post('/api/testimonials/upload-image')
+      .set('Authorization', auth)
+      .attach('file', PNG, { filename: 'face.png', contentType: 'image/png' });
+    expect(res.status).toBe(403);
+  });
 });

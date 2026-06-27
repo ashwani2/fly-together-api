@@ -1,5 +1,6 @@
 import type { DocType, AcademicSubType } from '@prisma/client';
 import { prisma } from '../../lib/prisma.js';
+import { emailCourseApplication, emailStudentDocumentReview } from '../../lib/appMail.js';
 
 const STATUS_TITLES: Record<string, string> = {
   CREATED: 'Application created',
@@ -52,6 +53,16 @@ export async function notifyApplicationAction(applicationId: string, action: str
   const ctx = `${app.universityName} — ${app.course}`;
   const { title, message } = describe(action, ctx);
   await prisma.notification.create({ data: { userId: app.student.userId, applicationId, title, message } });
+
+  // Email recipients depend on the event:
+  //   • CREATED (student submitted) → student (confirmation) + staff (heads-up)
+  //   • STATUS_/PAYMENT_ (staff moved the phase) → student only
+  //   • AGENT_* (internal) → no email (emailCourseApplication ignores it)
+  // Fire-and-forget so SMTP latency never delays the response.
+  const audience = action === 'CREATED' ? { student: true, staff: true } : { student: true, staff: false };
+  void emailCourseApplication(applicationId, action, audience).catch((e) =>
+    console.error('[notifications] application email failed:', (e as Error).message),
+  );
 }
 
 /** Record a notification when a document is verified or rejected. */
@@ -61,13 +72,21 @@ export async function notifyDocumentReview(
   subType: AcademicSubType | null,
   status: 'VERIFIED' | 'REJECTED',
 ) {
-  const student = await prisma.student.findUnique({ where: { id: studentId }, select: { userId: true } });
+  const student = await prisma.student.findUnique({
+    where: { id: studentId },
+    select: { userId: true, user: { select: { email: true } } },
+  });
   if (!student) return;
   const label = docLabel(docType, subType);
   const payload = status === 'VERIFIED'
     ? { title: 'Document verified', message: `Your ${label} was verified.` }
     : { title: 'Re-upload requested', message: `Your ${label} was rejected during review — please re-upload it from Profile & Documents.` };
   await prisma.notification.create({ data: { userId: student.userId, ...payload } });
+
+  // Email the student about the review (an admin/agent action), best-effort.
+  void emailStudentDocumentReview(student.user.email, label, status).catch((e) =>
+    console.error('[notifications] document email failed:', (e as Error).message),
+  );
 }
 
 // ---------- Reads ----------

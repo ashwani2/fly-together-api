@@ -31,3 +31,18 @@ export async function setPayment(req: Request, res: Response, next: NextFunction
   try { res.json({ data: await service.setPayment(req.params.id, { id: req.user!.id, role: req.user!.role }, req.body.paymentStatus, req.body.paymentLink) }); }
   catch (e) { next(e); }
 }
+export async function initializeFlywire(req: Request, res: Response, next: NextFunction) {
+  try { res.json({ data: await service.initializeFlywire(req.params.id, { id: req.user!.id, role: req.user!.role }, req.body.amount) }); }
+  catch (e) { next(e); }
+}
+export async function refreshFlywire(req: Request, res: Response, next: NextFunction) {
+  try { res.json({ data: await service.refreshFlywire(req.params.id, { id: req.user!.id, role: req.user!.role }) }); }
+  catch (e) { next(e); }
+}
+export async function scheduleMeeting(req: Request, res: Response, next: NextFunction) {
+  try {
+    res.status(201).json({
+      data: await service.scheduleMeeting(req.params.id, { id: req.user!.id, role: req.user!.role }, req.body),
+    });
+  } catch (e) { next(e); }
+}

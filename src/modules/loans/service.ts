@@ -2,6 +2,7 @@ import type { LoanStatus, Role, Prisma } from '@prisma/client';
 import { prisma } from '../../lib/prisma.js';
 import { AppError } from '../../lib/errors.js';
 import { getStorage } from '../../lib/storage/index.js';
+import { emailLoanApplication } from '../../lib/appMail.js';
 
 const LOAN_STATUS_LABELS: Record<string, string> = {
   SUBMITTED: 'Application submitted',
@@ -82,6 +83,10 @@ export async function create(
     }
   }
 
+  // New submission → confirm to the student and alert agent + admins.
+  void emailLoanApplication(loan.id, 'SUBMITTED', { student: true, staff: true }).catch((e) =>
+    console.error('[loans] application email failed:', (e as Error).message),
+  );
   return loan;
 }
 
@@ -212,6 +217,10 @@ export async function updateStatus(
     data: { userId: loan.student.userId, title: label, message },
   });
 
+  // Staff moved the application to another phase → email the student only.
+  void emailLoanApplication(id, status, { student: true, staff: false }).catch((e) =>
+    console.error('[loans] application email failed:', (e as Error).message),
+  );
   return updated;
 }
 
@@ -269,6 +278,10 @@ export async function resumeApplication(id: string, userId: string) {
     }
   }
 
+  // Student resubmitted documents → alert agent + admins so they can resume.
+  void emailLoanApplication(id, 'DOCUMENTS_SUBMITTED', { student: false, staff: true }).catch((e) =>
+    console.error('[loans] application email failed:', (e as Error).message),
+  );
   return updated;
 }
 
